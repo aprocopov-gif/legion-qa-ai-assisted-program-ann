@@ -1,0 +1,323 @@
+# Test Plan: Edit Existing Program Details
+
+---
+
+## Positive Flows
+
+### TC-001 — Edit form opens pre-populated with the program's current data
+
+**Preconditions:** User is logged in as admin; program "Web Development 2026" exists in the program list
+
+**Steps:**
+1. Navigate to the Programs page
+2. Locate "Web Development 2026" in the program list
+3. Click the edit icon on the "Web Development 2026" row
+
+**Expected result:** An edit modal/form opens with the Program Name field pre-filled with "Web Development 2026" and the Description field pre-filled with its current value
+
+**Priority:** High
+
+---
+
+### TC-002 — Admin successfully updates the program name
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field
+2. Enter "Web Development 2026 - Updated"
+3. Click the Save button
+
+**Expected result:** The modal closes; the program list immediately shows "Web Development 2026 - Updated" without a page reload
+
+**Priority:** High
+
+---
+
+### TC-003 — Program list reflects the updated name immediately without a page reload
+
+**Preconditions:** Admin has just saved the rename of "Web Development 2026" to "Web Development 2026 - Updated"
+
+**Steps:**
+1. Observe the program list after the modal closes
+2. Do not manually reload the page
+
+**Expected result:** "Web Development 2026 - Updated" is visible in the list; "Web Development 2026" no longer appears; no manual refresh was required
+
+**Priority:** High
+
+---
+
+### TC-004 — Editing only the Description preserves the Program Name
+
+**Preconditions:** Admin has opened the edit form for a program named "Web Development 2026" with description "Full-stack web development program"
+
+**Steps:**
+1. Leave the Program Name field unchanged ("Web Development 2026")
+2. Clear the Description field
+3. Enter "Updated full-stack curriculum for 2026" in the Description field
+4. Click the Save button
+
+**Expected result:** The modal closes; the program list still shows "Web Development 2026"; opening the edit form again confirms Name is "Web Development 2026" and Description is "Updated full-stack curriculum for 2026"
+
+**Priority:** High
+
+---
+
+### TC-005 — Editing only the Name preserves the Description
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026" with description "Full-stack web development program"
+
+**Steps:**
+1. Clear the Program Name field
+2. Enter "Web Development 2026 - Updated"
+3. Leave the Description field unchanged ("Full-stack web development program")
+4. Click the Save button
+
+**Expected result:** The modal closes; reopening the edit form confirms Description is still "Full-stack web development program"
+
+**Priority:** High
+
+---
+
+### TC-006 — Admin successfully updates both Name and Description simultaneously
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field and enter "Web Development 2026 - Updated"
+2. Clear the Description field and enter "Revised full-stack curriculum"
+3. Click the Save button
+
+**Expected result:** The modal closes; the list shows "Web Development 2026 - Updated"; reopening the edit form confirms both fields reflect the new values
+
+**Priority:** Medium
+
+---
+
+## Negative Flows
+
+### TC-007 — Save button is disabled when Program Name is cleared
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field so it is empty
+2. Observe the state of the Save button
+
+**Expected result:** The Save button is disabled; the form cannot be submitted with an empty name
+
+**Priority:** High
+
+---
+
+### TC-008 — Cancelling the edit form does not apply any changes
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field and enter "Should Not Be Saved"
+2. Enter "This description should not persist" in the Description field
+3. Close the modal via the Cancel button, X icon, or Escape key
+
+**Expected result:** The modal closes; the program list still shows "Web Development 2026"; no data was changed
+
+**Priority:** High
+
+---
+
+### TC-009 — Program Name containing only whitespace is rejected
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field
+2. Enter five space characters ("     ") in the Program Name field
+3. Observe the state of the Save button (or attempt to submit)
+
+**Expected result:** The Save button is disabled or a validation error is displayed; the program name is not updated to a blank/whitespace-only value
+
+**Priority:** Medium
+
+---
+
+### TC-010 — Non-admin user cannot access the edit icon
+
+**Preconditions:** User is logged in with a non-admin role (e.g., instructor or student)
+
+**Steps:**
+1. Navigate to the Programs page
+2. Locate "Web Development 2026" in the list
+3. Observe whether an edit icon is present on the row
+
+**Expected result:** The edit icon is hidden or disabled; the edit form is not accessible to non-admin users
+
+**Priority:** High
+
+---
+
+### TC-011 — Navigating away mid-edit without saving discards changes
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026" and has modified the Name field
+
+**Steps:**
+1. Change the Program Name to "Should Not Be Saved"
+2. Without clicking Save, navigate to a different page
+3. Return to the Programs page
+
+**Expected result:** "Web Development 2026" still appears in the list; the unsaved change was discarded
+
+**Priority:** Medium
+
+---
+
+## Edge Cases
+
+### TC-012 — Program Name at maximum allowed length is accepted
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026" (max length assumed 255 characters)
+
+**Steps:**
+1. Clear the Program Name field
+2. Enter a 255-character string (e.g., "A" repeated 255 times)
+3. Click the Save button
+
+**Expected result:** The program is saved successfully and the full name is shown in the list
+
+**Priority:** Medium
+
+---
+
+### TC-013 — Program Name exceeding maximum allowed length is rejected
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field
+2. Paste a 256-character string into the Program Name field
+3. Observe the field behavior
+
+**Expected result:** Input is truncated to the maximum length or a validation message is shown; the excess characters are not accepted
+
+**Priority:** Medium
+
+---
+
+### TC-014 — Program Name with special characters is saved and rendered correctly
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field
+2. Enter `Web Dev & Design: 2026 (Part 1)` in the Program Name field
+3. Click the Save button
+
+**Expected result:** The program is saved and the list displays `Web Dev & Design: 2026 (Part 1)` without encoding artifacts
+
+**Priority:** Medium
+
+---
+
+### TC-015 — Program Name with HTML/script tags does not execute
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field
+2. Enter `<script>alert('xss')</script>` in the Program Name field
+3. Click the Save button (if enabled)
+
+**Expected result:** The input is stored and rendered as plain text in the list; no script executes and no alert dialog appears
+
+**Priority:** High
+
+---
+
+### TC-016 — Editing to a name that duplicates an existing program is handled
+
+**Preconditions:** Both "Web Development 2026" and "Data Science 2026" exist in the program list; admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field
+2. Enter "Data Science 2026"
+3. Click the Save button
+
+**Expected result:** Either (a) an error message informs the admin that a program with this name already exists, or (b) the duplicate is saved if duplicates are permitted — behavior must be consistent with system design
+
+**Priority:** Medium
+
+---
+
+### TC-017 — Program Name with leading/trailing whitespace is trimmed on save
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"
+
+**Steps:**
+1. Clear the Program Name field
+2. Enter "  Web Development 2026 - Updated  " (with leading and trailing spaces)
+3. Click the Save button
+
+**Expected result:** The program is saved and appears in the list as "Web Development 2026 - Updated" with whitespace trimmed
+
+**Priority:** Low
+
+---
+
+### TC-018 — Description field at maximum allowed length is accepted
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026" (max length assumed 1000 characters)
+
+**Steps:**
+1. Clear the Description field
+2. Paste a 1000-character string into the Description field
+3. Click the Save button
+
+**Expected result:** The program is saved successfully
+
+**Priority:** Low
+
+---
+
+### TC-019 — Rapid double-click on Save does not submit the form twice
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026" with a valid Name
+
+**Steps:**
+1. Change the Program Name to "Web Development 2026 - Updated"
+2. Double-click the Save button rapidly
+
+**Expected result:** The program is updated exactly once; no duplicate entries or conflicting updates appear
+
+**Priority:** Medium
+
+---
+
+### TC-020 — Server error during save displays an appropriate error message
+
+**Preconditions:** Admin has opened the edit form for "Web Development 2026"; network or server is configured to return a 500 error on save
+
+**Steps:**
+1. Change the Program Name to "Web Development 2026 - Updated"
+2. Click the Save button
+
+**Expected result:** The modal remains open; an error message is displayed informing the admin that the save failed; the program list still shows the original name "Web Development 2026"
+
+**Priority:** Medium
+
+---
+
+## Ambiguities and Gaps in the Acceptance Criteria
+
+| # | Gap / Ambiguity |
+|---|----------------|
+| 1 | **Maximum field lengths** — No max length is specified for Program Name or Description. TC-012–013 and TC-018 assume 255 and 1000 characters respectively; actual limits need confirmation. |
+| 2 | **"Other fields"** — AC 3 mentions "Name and other fields remain unchanged" but never defines what other fields exist beyond Name and Description. If additional fields exist (e.g., status, start date, cohort count), they should be listed explicitly. |
+| 3 | **Duplicate names** — The ACs do not state whether two programs may share the same name. TC-016 cannot have a definitive expected result without this decision. |
+| 4 | **Edit icon visibility for non-admins** — No AC specifies whether the edit icon should be hidden, disabled, or absent for non-admin roles. |
+| 5 | **Cancel / dismiss behavior** — There is no AC covering what happens when the user cancels or closes the edit form mid-change (TC-008). |
+| 6 | **Unsaved-changes warning** — No AC addresses whether the system should warn the user before discarding unsaved edits when navigating away or closing the modal. |
+| 7 | **Program list sort order after edit** — The AC states the list "immediately shows" the updated name but does not specify whether the item's position in the list changes (e.g., alphabetical re-sort vs. staying in place). |
+| 8 | **Input sanitization** — No AC describes how special characters or HTML in fields should be handled (relevant to TC-014 and TC-015). |
+| 9 | **Concurrent edits** — No AC covers what happens if two admins edit the same program simultaneously (last-write-wins vs. conflict warning). |
+| 10 | **Error handling for server failures** — No AC describes the user experience when the save API call fails (network error, server 5xx). |
+| 11 | **Role-based field visibility** — It is unclear whether any fields should be read-only for certain admin sub-roles (e.g., a read-only admin). |

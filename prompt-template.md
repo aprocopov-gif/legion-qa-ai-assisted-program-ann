@@ -1,7 +1,7 @@
 ## Role
 You are a senior QA engineer reviewing the feature described below.
 ## Task
-Create a detailed Test Plan for the TODO MVC Application.
+Create a detailed Test Plan.md for the TODO MVC Application.
 ## Acceptance Criteria (ACs)
 All features should be covered: 
 1.Createa a TODO list

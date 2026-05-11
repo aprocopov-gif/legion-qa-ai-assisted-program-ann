@@ -1,5 +1,7 @@
 # Test Plan: TodoMVC — Create list, add 4 items, finish, remove
 
+> **Single source of truth** — this is the only test plan for the TodoMVC feature. All related Playwright specs live under `tests/todomvc/`.
+
 **Application under test:** [https://demo.playwright.dev/todomvc/#/](https://demo.playwright.dev/todomvc/#/) (React • TodoMVC demo)
 **Persistence:** browser `localStorage`, key `react-todos`, value is a JSON array of `{ id: UUID, title: string, completed: boolean }`
 

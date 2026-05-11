@@ -2,7 +2,16 @@
 
 **Application under test:** [https://demo.playwright.dev/todomvc/#/](https://demo.playwright.dev/todomvc/#/) (React • TodoMVC demo)
 **Persistence:** browser `localStorage`, key `react-todos`, value is a JSON array of `{ id: UUID, title: string, completed: boolean }`
-**Automated by:** `tests/todomvc/todomvc.spec.ts` (Playwright; see `tests/todomvc/todo-app.ts` for the Page Object)
+
+**Automated test files** (Playwright, page object: `tests/todomvc/todo-app.ts`)
+
+| File | Tests | Scope |
+|---|---|---|
+| `tests/todomvc/positive-flows.spec.ts` | TC-001 – TC-008 (8) | AC1–AC4 happy paths |
+| `tests/todomvc/negative-flows.spec.ts` | TC-009 – TC-013 (5) | Invalid input, un-toggle, no-collateral delete |
+| `tests/todomvc/edge-cases.spec.ts` | TC-014 – TC-022 (9) | Whitespace, XSS, long title, duplicates, rapid-add, toggle-all, filter views |
+| `tests/todomvc/todomvc.spec.ts` | TC-006/7/10–14/16–17/20–22/24–25/31–40 (24) | Inline editing, filters, clear-completed, toggle-all state machine, routing, persistence, scale, responsive, keyboard, console health |
+| **Total** | **46** | All ACs + extended coverage |
 
 **Acceptance Criteria under test**
 
@@ -291,20 +300,80 @@
 
 ---
 
+### TC-021 — Toggle-all marks every item finished; counter shows 0 left (AC3 edge)
+
+**Preconditions:** List contains 4 active items from TC-003; counter reads `4 items left`
+
+**Steps:**
+1. Click the `Mark all as complete` toggle
+
+**Expected result:** Every row receives the completed style; counter reads `0 items left`; `Clear completed` button is visible; `localStorage["react-todos"]` shows `completed: true` on all 4 entries
+
+**Priority:** Medium
+
+---
+
+### TC-022 — A finished item appears under the Completed filter and is hidden under Active (AC3 edge)
+
+**Preconditions:** List contains `Buy milk` (finished) and `Walk the dog` (active)
+
+**Steps:**
+1. Navigate to `#/active`
+2. Navigate to `#/completed`
+
+**Expected result:** Under `#/active` only `Walk the dog` is visible (count: 1); under `#/completed` only `Buy milk` is visible (count: 1)
+
+**Priority:** Medium
+
+---
+
+## Extended Coverage (`todomvc.spec.ts`)
+
+These 24 tests are not required by the 4 ACs but cover functionality observed in the application.
+
+| TC | Title | Group | Priority |
+|---|---|---|---|
+| TC-006 | Edit committed on Enter preserves id and completed state | Inline editing | High |
+| TC-007 | Edit committed on blur updates the item | Inline editing | Medium |
+| TC-020 | Editing a todo to empty string deletes it | Inline editing | High |
+| TC-021 | Edit cancelled by Escape reverts to original value | Inline editing | Medium |
+| TC-036 | Whitespace-only edit deletes the item | Inline editing | Medium |
+| TC-011 | Active filter shows only active todos and updates URL | Filters | High |
+| TC-012 | Completed filter shows only completed todos and updates URL | Filters | High |
+| TC-013 | All filter restores the full list | Filters | Medium |
+| TC-016 | Direct navigation to `#/active` filters correctly on first load | Filters | Medium |
+| TC-017 | Direct navigation to `#/completed` filters correctly on first load | Filters | Medium |
+| TC-033 | Filter selection persists across browser back and forward | Filters | Medium |
+| TC-014 | Clear completed removes only completed todos | Clear completed | High |
+| TC-022 | Clear completed button is hidden when no completed items exist | Clear completed | Medium |
+| TC-010 | Toggle-all click a second time restores all items to active | Toggle-all | High |
+| TC-032 | Toggle-all reflects mixed completed state correctly | Toggle-all | Medium |
+| TC-034 | Toggle-all checked state does not leak after list is emptied and refilled | Toggle-all | Low |
+| TC-024 | Invalid hash route falls through to All without crashing | Routing | Low |
+| TC-025 | Direct navigation to `#/completed` on an empty list shows empty state | Routing | Low |
+| TC-035 | Corrupted localStorage does not crash the app (**known product bug — `test.fail()`**) | Persistence | Low |
+| TC-037 | Two tabs in the same context share localStorage on reload | Persistence | Low |
+| TC-031 | Bulk insertion of 50 items remains responsive | Scale | Low |
+| TC-038 | All controls are visible and usable on a 375×667 mobile viewport | Responsive | Medium |
+| TC-039 | Keyboard: input is focusable and submits on Enter | Accessibility | Medium |
+| TC-040 | No unexpected console errors during a representative session | Console health | Medium |
+
+---
+
 ## Revalidation against the ACs (traceability matrix)
 
 | AC | Description | Covering test cases |
 |---|---|---|
 | AC1 | **Create a TODO list** — first-load empty state ready to receive items | TC-001, TC-007 (return to empty), TC-020 (return to empty after AC4) |
 | AC2 | **Add items (4)** — adding items, including the explicit "4 items" boundary | TC-002, TC-003, TC-008, TC-014, TC-015, TC-016, TC-017, TC-018, TC-019 (negative: TC-009, TC-010) |
-| AC3 | **Finish item** — marking an item as finished | TC-004, TC-005 (persistence), TC-011 (un-finish negative), TC-013 (no leak after delete) |
+| AC3 | **Finish item** — marking an item as finished | TC-004, TC-005 (persistence), TC-011 (un-finish negative), TC-013 (no leak after delete), TC-021 (toggle-all edge), TC-022 (filter view edge) |
 | AC4 | **Remove item from the list** — destroy operation | TC-006, TC-007, TC-008, TC-012, TC-013, TC-020 |
 
 **Coverage check:**
 
 - AC1 covered by TC-001 plus complementary "return to empty" cases (TC-007, TC-020). ✅
 - AC2 explicitly covered with single-add (TC-002), exact 4-add (TC-003), boundary 4-add under speed (TC-019), and complementary trim/whitespace/XSS/length/duplicate edge cases. Negatives (TC-009, TC-010) ensure invalid input cannot satisfy AC2. ✅
-- AC3 covered by TC-004 (positive), TC-005 (persistence), TC-011 (toggle-back negative), TC-013 (no completion leak after delete). ✅
+- AC3 covered by TC-004 (positive), TC-005 (persistence), TC-011 (toggle-back negative), TC-013 (no completion leak after delete), TC-021 (toggle-all finish), TC-022 (filter reflects finished state). ✅
 - AC4 covered by single-delete (TC-006), last-item-delete (TC-007), one-of-many-delete (TC-008), no-collateral-deletion (TC-012), interaction with finished items (TC-013), and full-list-delete (TC-020). ✅
 
 Every AC has at least one positive test, at least one negative or boundary test (where applicable), and corresponding edge cases.

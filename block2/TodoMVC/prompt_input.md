@@ -1,13 +1,13 @@
 ## Role
 You are a senior QA engineer reviewing the feature described below.
 ## Task
-Create a detailed Test Plan for the TODO MVC Application.
+Create a detailed test plan for the TODO MVC Application.
 ## Acceptance Criteria (ACs)
-All features should be covered: 
-1.Createa a TODO list
-2.Add items (4)
-3.Finish item. Expect to be finished
-4.Remove item  from the list. Expected to be removed
+All features should be covered:
+1. Create a TODO list
+2. Add items (4)
+3. Finish item. Expect to be finished
+4. Remove item from the list. Expected to be removed
 ## Requirements for the test plan
 - Cover every AC with at least one test case
 - Add edge cases the ACs don't mention
@@ -24,5 +24,9 @@ All features should be covered:
 ## Output
 - Structured test plan in Markdown
 - Use real field names and values, not placeholders
-- At the end: list any ambiguities or gaps in the Acs
-- Revalidate your outputs again the ACs
+- At the end: list any ambiguities or gaps in the ACs
+- Revalidate your outputs against the ACs
+
+Title: TodoMVC — Create list, add 4 items, finish, remove
+Application under test: https://demo.playwright.dev/todomvc/#/
+Persistence: browser localStorage, key `react-todos`

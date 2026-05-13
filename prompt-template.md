@@ -1,13 +1,16 @@
 ## Role
 You are a senior QA engineer reviewing the feature described below.
+
 ## Task
 Create a detailed Test Plan.md for the TODO MVC Application.
+
 ## Acceptance Criteria (ACs)
 All features should be covered: 
 1.Createa a TODO list
 2.Add items (4)
 3.Finish item. Expect to be finished
 4.Remove item  from the list. Expected to be removed
+
 ## Requirements for the test plan
 - Cover every AC with at least one test case
 - Add edge cases the ACs don't mention
@@ -21,6 +24,7 @@ All features should be covered:
   - Expected result
   - Priority (High / Medium / Low)
 - Group by: Positive flows, Negative flows, Edge cases
+
 ## Output
 - Structured test plan in Markdown
 - Use real field names and values, not placeholders

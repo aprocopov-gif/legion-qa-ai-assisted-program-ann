@@ -12,7 +12,7 @@
 1. Navigate to the Programs page
 2. Click the "+ New Program" button
 
-**Expected result:** A modal/form appears containing a "Program Name" field and a "Description" field
+**Expected result:** A modal/form appears containing fields: "Program Name", "Description" and "Create" button.
 
 **Priority:** High
 

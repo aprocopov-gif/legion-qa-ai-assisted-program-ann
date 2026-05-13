@@ -6,7 +6,7 @@ You are a senior QA engineer reviewing the feature described below.
 Write Playwright tests for editing an existing program on Didaxis Studio.
 
 ## App context (from manual inspection)
-- Login page: https://test.didaxis.studio/login
+- Login page: [https://test.didaxis.studio/login](https://test.didaxis.studio/login)
   - Email field: `getByRole('textbox', { name: 'Email' })`
   - Password field: `getByRole('textbox', { name: 'Password' })`
   - Sign In button: `getByRole('button', { name: 'Sign In' })`

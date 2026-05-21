@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 const BASE_URL = process.env.DIDAXIS_URL!;
+const DATA_PREFIX = "AP_";
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const testProgramName = (label: string) => `${DATA_PREFIX}${label} ${Date.now()}`;
+const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
 
 async function openNewProgramModal(page: any) {
   await page.goto(`${BASE_URL}/programs`);
@@ -8,18 +12,21 @@ async function openNewProgramModal(page: any) {
   return page.getByRole("dialog", { name: "New Program" });
 }
 
-async function createProgram(page: any, name: string) {
+async function createProgram(page: any, name: string, description = "") {
   const modal = await openNewProgramModal(page);
   await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
+  if (description) {
+    await modal.getByRole("textbox", { name: "Description" }).fill(description);
+  }
   await modal.getByRole("button", { name: "Create" }).click();
-  await expect(page.getByRole("cell", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })).toBeVisible();
+  await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
 }
 
 async function deleteProgram(page: any, name: string) {
   await page.goto(`${BASE_URL}/programs`);
   page.once("dialog", (dialog: any) => dialog.accept());
   await page
-    .getByRole("row", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })
+    .getByRole("row", { name: new RegExp(esc(name)) })
     .first()
     .getByRole("button", { name: "🗑" })
     .click();
@@ -36,53 +43,52 @@ test.describe("DS-3: Program Name Validation", () => {
 
   // TC-001 — Program name with special characters is accepted and rendered correctly
   test("TC-001: Program name with special characters is accepted and rendered correctly", async ({ page }) => {
-    const name = `Informatique & IA - Niveau ${Date.now()}`;
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const name = `${DATA_PREFIX}Informatique & IA - Niveau ${Date.now()}`;
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    const cell = page.getByRole("cell", { name: new RegExp(escaped) });
+    const cell = page.getByRole("cell", { name: new RegExp(esc(name)) });
     await expect(cell).toBeVisible();
     await expect(cell).not.toContainText("&amp;");
   });
 
   // TC-002 — Program name with alphanumeric characters and spaces is accepted
   test("TC-002: Program name with alphanumeric characters and spaces is accepted", async ({ page }) => {
-    const name = `Web Development ${Date.now()}`;
+    const name = testProgramName("Web Development");
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(name) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
   });
 
   // TC-003 — Program name with leading and trailing whitespace is trimmed and saved
   test("TC-003: Program name with leading/trailing whitespace is trimmed and saved", async ({ page }) => {
-    const baseName = `Data Science ${Date.now()}`;
+    const baseName = testProgramName("Data Science");
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(`  ${baseName}  `);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(baseName) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(baseName)) })).toBeVisible();
   });
 
   // TC-004 — A name previously used by a deleted program can be reused
   test("TC-004: A name previously used by a deleted program can be reused", async ({ page }) => {
-    const name = `Reuse Test ${Date.now()}`;
+    const name = testProgramName("Reuse Test");
     await createProgram(page, name);
     await deleteProgram(page, name);
 
-    await expect(page.getByRole("cell", { name: new RegExp(name) })).not.toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).not.toBeVisible();
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(name) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
   });
 
   // TC-005 — Program name consisting only of spaces is rejected
@@ -104,7 +110,7 @@ test.describe("DS-3: Program Name Validation", () => {
   // TC-007 — Duplicate program name (exact match) is rejected with an error message
   // test.fail() documents a known app defect: duplicate creation succeeds instead of being rejected
   test.fail("TC-007: Duplicate program name is rejected with an error message", async ({ page }) => {
-    const name = `Duplicate Test ${Date.now()}`;
+    const name = testProgramName("Duplicate Test");
     await createProgram(page, name);
 
     const modal = await openNewProgramModal(page);
@@ -112,7 +118,7 @@ test.describe("DS-3: Program Name Validation", () => {
     await modal.getByRole("button", { name: "Create" }).click();
 
     const errorVisible = await page.getByRole("alert").isVisible().catch(() => false);
-    const cells = page.getByRole("cell", { name: new RegExp(name) });
+    const cells = page.getByRole("cell", { name: new RegExp(esc(name)) });
     const count = await cells.count();
 
     // Expected: error shown and no duplicate created — if count > 1 the app has a bug
@@ -121,7 +127,7 @@ test.describe("DS-3: Program Name Validation", () => {
 
   // TC-008 — Duplicate-name error message is specific and actionable
   test("TC-008: Duplicate-name error message is specific and actionable", async ({ page }) => {
-    const name = `Duplicate Error Test ${Date.now()}`;
+    const name = testProgramName("Duplicate Error Test");
     await createProgram(page, name);
 
     const modal = await openNewProgramModal(page);
@@ -170,25 +176,25 @@ test.describe("DS-3: Program Name Validation", () => {
 
   // TC-012 — Single-character program name is accepted
   test("TC-012: Single-character program name is accepted", async ({ page }) => {
-    const name = `A${Date.now()}`;
+    const name = `${DATA_PREFIX}A${Date.now()}`;
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(name) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
   });
 
   // TC-013 — Program name at the maximum allowed length is accepted
   test("TC-013: Program name at maximum allowed length is accepted", async ({ page }) => {
     const suffix = String(Date.now());
-    const maxName = "A".repeat(255 - suffix.length) + suffix;
+    const maxName = DATA_PREFIX + "A".repeat(255 - DATA_PREFIX.length - suffix.length) + suffix;
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(maxName);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(suffix) }).first()).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(suffix)) }).first()).toBeVisible();
   });
 
   // TC-014 — Program name exceeding maximum allowed length is rejected or truncated
@@ -213,7 +219,7 @@ test.describe("DS-3: Program Name Validation", () => {
     });
 
     const modal = await openNewProgramModal(page);
-    await modal.getByRole("textbox", { name: "Program Name" }).fill("<script>alert('xss')</script>");
+    await modal.getByRole("textbox", { name: "Program Name" }).fill(`${DATA_PREFIX}<script>alert('xss')</script>`);
 
     if (await modal.getByRole("button", { name: "Create" }).isEnabled()) {
       await modal.getByRole("button", { name: "Create" }).click();
@@ -224,7 +230,7 @@ test.describe("DS-3: Program Name Validation", () => {
 
   // TC-016 — Duplicate check behavior is consistent for case-variant names
   test("TC-016: Duplicate check is consistent for case-variant names", async ({ page }) => {
-    const baseName = `Case Test ${Date.now()}`;
+    const baseName = testProgramName("Case Test");
     await createProgram(page, baseName);
 
     const modal = await openNewProgramModal(page);
@@ -234,7 +240,7 @@ test.describe("DS-3: Program Name Validation", () => {
 
     // Either rejected as duplicate (case-insensitive) or created (case-sensitive) — both valid, must be consistent
     const errorVisible = await page.getByRole("alert").isVisible().catch(() => false);
-    const cells = page.getByRole("cell", { name: new RegExp(baseName, "i") });
+    const cells = page.getByRole("cell", { name: new RegExp(esc(baseName), "i") });
     const count = await cells.count();
     expect(errorVisible || count >= 1).toBe(true);
   });
@@ -242,7 +248,7 @@ test.describe("DS-3: Program Name Validation", () => {
   // TC-017 — Program name with Unicode and multilingual characters is accepted
   test("TC-017: Program name with Unicode and multilingual characters is accepted", async ({ page }) => {
     const timestamp = Date.now();
-    const name = `Programmation Niveau ${timestamp} 高级`;
+    const name = `${DATA_PREFIX}Programmation Niveau ${timestamp} 高级`;
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
@@ -254,7 +260,7 @@ test.describe("DS-3: Program Name Validation", () => {
   // TC-018 — Duplicate name validation is enforced server-side after a page reload
   // test.fail() documents a known app defect: duplicate passes even after reload (no server-side check)
   test.fail("TC-018: Duplicate name validation is enforced after a page reload", async ({ page }) => {
-    const name = `Reload Dup Test ${Date.now()}`;
+    const name = testProgramName("Reload Dup Test");
     await createProgram(page, name);
 
     await page.reload();
@@ -265,26 +271,26 @@ test.describe("DS-3: Program Name Validation", () => {
     await modal.getByRole("button", { name: "Create" }).click();
 
     const errorVisible = await page.getByRole("alert").isVisible().catch(() => false);
-    const cells = page.getByRole("cell", { name: new RegExp(name) });
+    const cells = page.getByRole("cell", { name: new RegExp(esc(name)) });
     const count = await cells.count();
     expect(errorVisible || count === 1).toBe(true);
   });
 
   // TC-019 — Program name consisting only of numeric characters is accepted
   test("TC-019: Program name consisting only of numeric characters is accepted", async ({ page }) => {
-    const name = String(Date.now());
+    const name = `${DATA_PREFIX}${Date.now()}`;
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(name) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
   });
 
   // TC-020 — Rapid double-click on Create does not produce duplicate programs
   // test.fail() documents a known app defect: double-clicking Create submits the form twice
   test.fail("TC-020: Rapid double-click on Create does not produce duplicate programs", async ({ page }) => {
-    const name = `Double Click Test ${Date.now()}`;
+    const name = testProgramName("Double Click Test");
 
     const modal = await openNewProgramModal(page);
     await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
@@ -292,7 +298,7 @@ test.describe("DS-3: Program Name Validation", () => {
 
     await expect(page.getByRole("dialog", { name: "New Program" })).not.toBeVisible({ timeout: 10000 });
 
-    const cells = page.getByRole("cell", { name: new RegExp(name) });
+    const cells = page.getByRole("cell", { name: new RegExp(esc(name)) });
     await expect(cells.first()).toBeVisible();
     expect(await cells.count()).toBe(1);
   });

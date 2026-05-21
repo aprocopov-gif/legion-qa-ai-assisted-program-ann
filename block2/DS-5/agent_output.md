@@ -48,10 +48,10 @@
 
 ### TC-004 — Newly created program appears in the list without requiring a manual reload
 
-**Preconditions:** User is logged in as admin; the Programs page is open; "Web Development 2026" exists in the list
+**Preconditions:** User is logged in as admin; the Programs page is open; at least one program exists in the list
 
 **Steps:**
-1. Click the "+ New Program" button (or equivalent)
+1. Click the "+ New Program" button
 2. Enter "Data Science 2026" as the program name and "Applied machine learning and statistics" as the description
 3. Fill all other required fields with valid values
 4. Click the Create button
@@ -68,7 +68,7 @@
 **Preconditions:** User is logged in as admin; no programs exist; the Programs page is showing the empty-state message
 
 **Steps:**
-1. Click the create prompt on the empty-state screen
+1. Click the create prompt on the empty-state screen (or "+ New Program")
 2. Enter "Test Program" as the program name and "A test program" as the description
 3. Submit the form
 4. Observe the Programs page
@@ -153,7 +153,7 @@
 
 ### TC-011 — Program with a maximum-length name is displayed without overflow or truncation artefacts
 
-**Preconditions:** User is logged in as admin; a program with a 255-character name (e.g., "A" × 255) and description "Edge case program" exists
+**Preconditions:** User is logged in as admin; a program with a 255-character name (e.g., "A" repeated 255 times) and description "Edge case program" exists
 
 **Steps:**
 1. Navigate to the Programs page
@@ -167,11 +167,11 @@
 
 ### TC-012 — Program with a maximum-length description is displayed without layout breakage
 
-**Preconditions:** User is logged in as admin; a program named "Test Program" with a 500-character description (e.g., "B" × 500) exists
+**Preconditions:** User is logged in as admin; a program named "Test Program" with a 500-character description (e.g., "B" repeated 500 times) exists
 
 **Steps:**
 1. Navigate to the Programs page
-2. Inspect the description cell for "Test Program"
+2. Inspect the description for "Test Program"
 
 **Expected result:** The description is rendered (fully or truncated by design); the row height and page layout remain intact; no text overflows outside its container
 
@@ -213,9 +213,9 @@
 
 **Steps:**
 1. Navigate to the Programs page
-2. Inspect the description cell for "Whitespace Description Program"
+2. Inspect the description for "Whitespace Description Program"
 
-**Expected result:** The description cell either appears empty or displays a placeholder (e.g., "—" or "No description"); no raw whitespace string is rendered; no layout shift occurs
+**Expected result:** The description either appears empty or displays a placeholder (e.g., "—" or "No description"); no raw whitespace string is rendered; no layout shift occurs
 
 **Priority:** Low
 
@@ -237,14 +237,14 @@
 
 ### TC-017 — Program list with a large number of programs is paginated or scrollable without performance degradation
 
-**Preconditions:** User is logged in as admin; 200 programs exist with varying names and descriptions
+**Preconditions:** User is logged in as admin; a large number of programs exist with varying names and descriptions
 
 **Steps:**
 1. Navigate to the Programs page
 2. Observe the rendering and scrolling behaviour
 3. If pagination is present, navigate to the next page
 
-**Expected result:** The page loads within an acceptable time (under 3 seconds); all 200 programs are reachable via scrolling or pagination; no programs are silently omitted; the UI remains responsive
+**Expected result:** The page loads within an acceptable time; all programs are reachable via scrolling or pagination; no programs are silently omitted; the UI remains responsive
 
 **Priority:** Medium
 
@@ -297,13 +297,15 @@
 
 | # | Gap / Ambiguity |
 |---|----------------|
-| 1 | **Fields displayed in the list** — The AC mentions only name and description. It is not specified whether other fields (e.g., creation date, number of enrolled students, status, assigned instructors) should also appear in the list view. |
+| 1 | **Fields displayed in the list** — The AC mentions only name and description. It is not specified whether other fields (e.g., creation date, status, assigned instructors) should also appear in the list view. |
 | 2 | **Default sort order** — No AC defines how the program list should be ordered (alphabetical, by creation date, by last-modified date). Without a defined order, TC-020 cannot have a fully deterministic expected result. |
 | 3 | **Pagination vs. infinite scroll vs. full list** — The AC does not define what happens when there are many programs. There is no mention of pagination, virtual scrolling, or a hard cap on list size. |
 | 4 | **Empty-state message wording** — The AC says "a message indicating no programs have been created" but does not specify the exact copy or the label on the create prompt. Agreed wording is needed for TC-002 to be unambiguously testable. |
 | 5 | **Description field optionality** — The AC assumes every program has a description, but it is not stated whether description is a required field. TC-016 depends on knowing whether a blank description is a valid state. |
-| 6 | **Access control** — The AC does not specify which roles can view the Programs page. The test plan assumes admin-only access; it is unclear whether read-only admin roles or other roles should also see the list. |
+| 6 | **Access control** — The AC does not specify which roles can view the Programs page. The story description implies admin-only access; it is unclear whether read-only admin roles or other roles should also see the list. |
 | 7 | **Multi-tenancy / data isolation** — No AC addresses whether program lists are scoped to an organisation or tenant. TC-009 assumes tenant isolation, but this must be confirmed. |
-| 8 | **Real-time updates** — The AC does not state whether the list should update automatically (e.g., via WebSocket or polling) when another admin creates or deletes a program in a concurrent session. |
+| 8 | **Real-time updates** — The AC does not state whether the list should update automatically when another admin creates or deletes a program in a concurrent session. TC-004 assumes immediate update after local creation only. |
 | 9 | **Truncation behaviour for long values** — It is not defined whether long names or descriptions should be truncated in the list view (with a tooltip or expand option) or displayed in full. TC-011 and TC-012 cannot have a precise expected result without this design decision. |
 | 10 | **Search and filtering** — The story title mentions "filtering" but neither AC describes a filter or search capability. It is unclear whether filtering is in scope for this story or a separate one. |
+| 11 | **List layout** — The AC does not specify whether name and description appear in separate columns or share a single cell. UI inspection shows a single "Program" column with stacked name and description text. |
+| 12 | **Admin login precondition** — Neither AC scenario states that the user must be logged in as admin, though the story description implies admin access. |

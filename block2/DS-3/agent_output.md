@@ -13,7 +13,7 @@
 2. Fill all other required fields with valid values
 3. Click the Create button
 
-**Expected result:** The program is created; the program list displays "Informatique & IA - Niveau 2" without encoding artifacts (e.g., `&amp;` is not rendered in place of `&`)
+**Expected result:** The program is created successfully; the program list displays "Informatique & IA - Niveau 2" without encoding artifacts (e.g., `&amp;` is not rendered in place of `&`)
 
 **Priority:** High
 
@@ -66,7 +66,7 @@
 
 ## Negative Flows
 
-### TC-005 — Program name consisting only of spaces is rejected
+### TC-005 — Program name consisting only of whitespace is rejected
 
 **Preconditions:** User is logged in as admin; the program creation form is open
 
@@ -75,7 +75,7 @@
 2. Fill all other required fields with valid values
 3. Click the Create button
 
-**Expected result:** The form is not submitted; a validation error indicates the name cannot be blank; no program is created
+**Expected result:** The form is not submitted; the name is trimmed and treated as empty (Create button remains disabled or a validation error is shown); no program is created
 
 **Priority:** High
 
@@ -105,7 +105,7 @@
 2. Fill all other required fields with valid values
 3. Click the Create button
 
-**Expected result:** The form is not submitted; an inline error or toast notification states that a program with this name already exists; no second program is created
+**Expected result:** The form is not submitted; an error indicating the name already exists is displayed; no second program is created
 
 **Priority:** High
 
@@ -315,14 +315,15 @@
 
 | # | Gap / Ambiguity |
 |---|----------------|
-| 1 | **Case sensitivity of duplicate check** — AC3 specifies an exact-match scenario ("Web Development 2026") but does not state whether the duplicate check is case-insensitive. TC-016 cannot have a definitive expected result without this decision. |
+| 1 | **Case sensitivity of duplicate check** — AC 3 specifies an exact-match scenario ("Web Development 2026") but does not state whether the duplicate check is case-insensitive. TC-016 cannot have a definitive expected result without this decision. |
 | 2 | **Maximum length for Program Name** — No character limit is defined. TC-013 and TC-014 assume 255 characters; the actual limit must be confirmed and ideally surfaced in the UI (e.g., a character counter). |
-| 3 | **Definition of whitespace** — AC1 demonstrates whitespace using spaces only ("   "). It is unclear whether tab characters (`\t`), non-breaking spaces (` `), or other Unicode whitespace are also trimmed and treated as empty. |
-| 4 | **Other required fields** — AC2 references "other required fields" without naming them. Test cases cannot be fully specified without knowing every required field and its own validation rules. |
-| 5 | **Duplicate check scope in multi-tenant systems** — AC3 does not clarify whether uniqueness is enforced globally or per organisation/tenant. Two separate organisations may legitimately share a program name. |
+| 3 | **Definition of whitespace** — AC 1 demonstrates whitespace using spaces only ("   "). It is unclear whether tab characters (`\t`), non-breaking spaces (`\u00a0`), or other Unicode whitespace are also trimmed and treated as empty. |
+| 4 | **Other required fields** — AC 2 references "other required fields" without naming them. Test cases cannot be fully specified without knowing every required field and its own validation rules. |
+| 5 | **Duplicate check scope in multi-tenant systems** — AC 3 does not clarify whether uniqueness is enforced globally or per organisation/tenant. Two separate organisations may legitimately share a program name. |
 | 6 | **Name reuse after deletion** — No AC addresses whether a name that belonged to a deleted or archived program becomes available again. TC-004 assumes it does; this must be confirmed. |
-| 7 | **Error message wording** — AC3 states "an error indicating the name already exists" but does not specify the exact copy. Agreed wording is needed to make TC-008 testable without ambiguity. |
-| 8 | **Client-side vs. server-side validation** — It is not stated whether the whitespace/empty check (AC1) is enforced on the client, the server, or both. Server-side enforcement is essential to prevent bypasses via direct API calls. |
-| 9 | **Trim on non-empty names** — AC1 confirms trimming is applied to whitespace-only input, but does not state whether leading/trailing whitespace on otherwise valid names (e.g., "  Data Science 2026  ") is also trimmed before storage (TC-003). |
-| 10 | **Special character rendering** — AC2 confirms "Informatique & IA - Niveau 2" must be accepted, but does not specify how `&` should be stored and rendered: as the literal character `&` or HTML-encoded as `&amp;`. |
-| 11 | **Access control** — No AC specifies which roles can create programs. The test plan assumes admin-only access; this requires explicit confirmation, particularly for any admin sub-roles that may be read-only. |
+| 7 | **Error message wording** — AC 3 states "an error indicating the name already exists" but does not specify the exact copy. Agreed wording is needed to make TC-008 testable without ambiguity. |
+| 8 | **Client-side vs. server-side validation** — It is not stated whether the whitespace/empty check (AC 1) is enforced on the client, the server, or both. Server-side enforcement is essential to prevent bypasses via direct API calls. |
+| 9 | **Trim on non-empty names** — AC 1 confirms trimming is applied to whitespace-only input, but does not state whether leading/trailing whitespace on otherwise valid names (e.g., "  Data Science 2026  ") is also trimmed before storage (TC-003). |
+| 10 | **Special character rendering** — AC 2 confirms "Informatique & IA - Niveau 2" must be accepted, but does not specify how `&` should be stored and rendered: as the literal character `&` or HTML-encoded as `&amp;`. |
+| 11 | **Access control** — No AC specifies which roles can create programs. The story description implies admin-only access; this requires explicit confirmation, particularly for any admin sub-roles that may be read-only. |
+| 12 | **Double-submit vs. duplicate prevention** — AC 3 covers duplicate names across separate submissions but does not address rapid double-click on Create (TC-020). |

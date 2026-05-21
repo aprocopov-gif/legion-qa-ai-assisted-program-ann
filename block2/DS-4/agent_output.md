@@ -11,9 +11,9 @@
 **Steps:**
 1. Navigate to the Programs page
 2. Locate "Test Program" in the program list
-3. Click the delete icon (trash icon) for "Test Program"
+3. Click the delete icon for "Test Program"
 4. Observe that a confirmation dialog appears
-5. Click the Confirm (or "Delete") button in the dialog
+5. Confirm deletion in the dialog
 
 **Expected result:** The confirmation dialog closes; "Test Program" is no longer present in the program list; no error message is displayed
 
@@ -30,7 +30,7 @@
 2. Locate "Test Program" in the program list
 3. Click the delete icon for "Test Program"
 4. Observe that a confirmation dialog appears
-5. Click the Cancel button in the dialog
+5. Click Cancel in the confirmation dialog
 
 **Expected result:** The confirmation dialog closes; "Test Program" is still present in the program list with all its details unchanged
 
@@ -45,7 +45,7 @@
 **Steps:**
 1. Navigate to the Programs page
 2. Click the delete icon for "Test Program"
-3. Click Confirm in the confirmation dialog
+3. Confirm deletion in the confirmation dialog
 4. Inspect the program list after deletion
 
 **Expected result:** "Test Program" is removed; "Data Science 2026" remains in the list with its data unchanged
@@ -59,7 +59,7 @@
 **Preconditions:** User is logged in as admin; "Test Program" has just been successfully deleted
 
 **Steps:**
-1. Click the "+ New Program" button (or equivalent)
+1. Click the "+ New Program" button
 2. Enter "Test Program" in the Program Name field
 3. Fill all other required fields with valid values
 4. Click the Create button
@@ -77,9 +77,9 @@
 **Steps:**
 1. Navigate to the Programs page
 2. Click the delete icon for "Web Development 2026"
-3. Read the text shown in the confirmation dialog
+3. Read the message shown in the confirmation dialog
 
-**Expected result:** The dialog references "Web Development 2026" by name (e.g., "Are you sure you want to delete 'Web Development 2026'?"); it does not show a different program's name or a generic placeholder
+**Expected result:** The dialog references "Web Development 2026" by name (e.g., `Delete program "Web Development 2026"`); it does not show a different program's name or a generic placeholder
 
 **Priority:** High
 
@@ -91,7 +91,7 @@
 
 **Steps:**
 1. Click the delete icon for "Test Program"
-2. Confirm deletion
+2. Confirm deletion in the confirmation dialog
 3. Reload the Programs page
 
 **Expected result:** "Test Program" does not reappear after reload; the deletion was committed server-side
@@ -116,14 +116,14 @@
 
 ---
 
-### TC-008 — Closing the confirmation dialog via the X button leaves the program intact
+### TC-008 — Dismissing the confirmation dialog leaves the program intact
 
 **Preconditions:** User is logged in as admin; "Test Program" exists
 
 **Steps:**
 1. Click the delete icon for "Test Program"
 2. Observe the confirmation dialog appears
-3. Click the X (close) button on the dialog
+3. Dismiss the dialog (Cancel button or equivalent dismiss action)
 
 **Expected result:** The dialog closes; "Test Program" remains in the program list; no deletion is triggered
 
@@ -133,12 +133,12 @@
 
 ### TC-009 — Deletion does not proceed when the network is unavailable at confirmation
 
-**Preconditions:** User is logged in as admin; "Test Program" exists; network connectivity is disabled (e.g., via browser DevTools → Offline mode) after the dialog opens
+**Preconditions:** User is logged in as admin; "Test Program" exists; network connectivity is disabled or the DELETE request fails after the dialog opens
 
 **Steps:**
 1. Click the delete icon for "Test Program"
-2. Disable network connectivity
-3. Click Confirm in the confirmation dialog
+2. Simulate a network failure (e.g., browser DevTools → Offline mode or request interception)
+3. Confirm deletion in the confirmation dialog
 
 **Expected result:** An error message is displayed (e.g., "Failed to delete program. Please try again."); "Test Program" remains in the program list once connectivity is restored and the page is refreshed
 
@@ -160,13 +160,13 @@
 
 ---
 
-### TC-011 — Clicking Cancel multiple times does not accumulate side effects
+### TC-011 — Cancelling deletion multiple times does not accumulate side effects
 
 **Preconditions:** User is logged in as admin; "Test Program" exists
 
 **Steps:**
 1. Click the delete icon for "Test Program"
-2. Click Cancel in the dialog
+2. Click Cancel in the confirmation dialog
 3. Repeat steps 1–2 five more times
 4. Verify the program list
 
@@ -184,7 +184,7 @@
 
 **Steps:**
 1. Click the delete icon for "Test Program"
-2. Click Confirm in the confirmation dialog
+2. Confirm deletion in the confirmation dialog
 
 **Expected result:** The program list is now empty; an appropriate empty-state message is displayed (e.g., "No programs yet. Create your first program."); no error or broken layout appears
 
@@ -199,7 +199,7 @@
 **Steps:**
 1. Click the delete icon for "Informatique & IA - Niveau 2"
 2. Verify the confirmation dialog shows the name correctly (not HTML-encoded)
-3. Click Confirm
+3. Confirm deletion
 
 **Expected result:** The program is deleted; "Informatique & IA - Niveau 2" no longer appears in the list; the dialog rendered the `&` as a literal ampersand (not `&amp;`)
 
@@ -209,13 +209,13 @@
 
 ### TC-014 — Program with a maximum-length name can be deleted and the dialog renders it without overflow
 
-**Preconditions:** User is logged in as admin; a program with a 255-character name exists (e.g., "A" × 255)
+**Preconditions:** User is logged in as admin; a program with a 255-character name exists (e.g., "A" repeated 255 times)
 
 **Steps:**
 1. Click the delete icon for the 255-character-name program
-2. Inspect the confirmation dialog layout
+2. Inspect the confirmation dialog message
 
-**Expected result:** The dialog renders the full program name without overflow, truncation artefacts, or broken layout; clicking Confirm deletes the program successfully
+**Expected result:** The dialog renders the full program name without overflow, truncation artefacts, or broken layout; confirming deletion removes the program successfully
 
 **Priority:** Low
 
@@ -227,7 +227,7 @@
 
 **Steps:**
 1. Click the delete icon for "Test Program"
-2. When the confirmation dialog appears, press the Escape key
+2. When the confirmation dialog appears, press the Escape key (or dismiss the dialog via the equivalent cancel action)
 
 **Expected result:** The dialog closes; "Test Program" remains in the program list; no deletion is triggered
 
@@ -241,7 +241,7 @@
 
 **Steps:**
 1. Click the delete icon for "Test Program"
-2. Double-click the Confirm button rapidly
+2. Attempt to double-click Confirm rapidly in the confirmation dialog
 
 **Expected result:** Exactly one deletion request is sent; "Test Program" is removed once; no duplicate API calls are made; no error appears in the UI
 
@@ -284,7 +284,7 @@
 
 **Steps:**
 1. Click the delete icon for the program with the HTML-tag name
-2. Inspect the confirmation dialog text
+2. Inspect the confirmation dialog message
 
 **Expected result:** The dialog displays the literal string `<b>Bold Program</b>` as plain text; no bold formatting is rendered; no script executes
 
@@ -297,12 +297,14 @@
 | # | Gap / Ambiguity |
 |---|----------------|
 | 1 | **Confirmation dialog wording** — The AC states "I see a confirmation dialog" but does not specify the exact copy (title, body text, button labels). Agreed wording is needed for TC-005 and TC-013 to be unambiguously testable. |
-| 2 | **What triggers the delete icon** — The AC mentions "click the delete icon" but does not specify whether the icon is always visible in the row or only revealed on hover/focus. The test steps may need adjusting depending on the UI pattern. |
-| 3 | **Cascade behaviour on deletion** — No AC addresses what happens to data associated with a program (e.g., enrolled students, assigned instructors, sessions). It is unclear whether deletion is blocked when associations exist, or whether associated data is cascaded/soft-deleted. |
-| 4 | **Soft delete vs. hard delete** — The AC says the program "is removed from the program list" but does not state whether it is permanently deleted or archived/soft-deleted. This affects TC-006 (persistence) and TC-004 (name reuse). |
-| 5 | **Access control for delete** — No AC specifies which roles may delete programs. The test plan assumes admin-only; sub-roles (e.g., read-only admin) are not addressed. |
-| 6 | **Confirmation button label** — "Confirm" is assumed from the AC phrasing ("When I confirm deletion"), but the actual button label is unspecified. It may be "Delete", "Yes", or "OK", which affects step descriptions. |
-| 7 | **Dialog dismissal methods** — The AC describes only Cancel as a way to abort. It is not stated whether clicking outside the dialog, pressing Escape, or closing the browser tab also cancels deletion (TC-015, TC-018). |
-| 8 | **UI feedback after successful deletion** — The AC only states the program is removed from the list. There is no mention of a success toast, notification, or any other feedback to the user. |
-| 9 | **Undo / restore capability** — No AC mentions whether a deleted program can be restored. If an undo mechanism exists, additional test cases are needed. |
-| 10 | **Concurrent deletion** — If two admins attempt to delete the same program simultaneously, the expected behaviour (e.g., second request returns 404 gracefully) is not defined. |
+| 2 | **Dialog type** — The AC refers to a "confirmation dialog" with Cancel, but the implementation may use a native browser `window.confirm()` rather than a custom React/Mantine modal. This affects whether an X button exists (TC-008) and how Escape behaves (TC-015). |
+| 3 | **What triggers the delete icon** — The AC mentions "click the delete icon" but does not specify whether the icon is always visible in the row or only revealed on hover/focus. |
+| 4 | **Cascade behaviour on deletion** — No AC addresses what happens to data associated with a program (e.g., curriculum sessions, enrolled students). It is unclear whether deletion is blocked when associations exist, or whether associated data is cascaded/soft-deleted. |
+| 5 | **Soft delete vs. hard delete** — The AC says the program "is removed from the program list" but does not state whether it is permanently deleted or archived/soft-deleted. This affects TC-006 (persistence) and TC-004 (name reuse). |
+| 6 | **Access control for delete** — No AC specifies which roles may delete programs. The story description implies admin-only; sub-roles (e.g., read-only admin) are not addressed. |
+| 7 | **Confirmation button label** — "Confirm deletion" is used in the AC phrasing, but the actual button label is unspecified. It may be "OK", "Delete", or another label on a native confirm dialog. |
+| 8 | **Dialog dismissal methods** — The AC describes only Cancel as a way to abort. It is not stated whether pressing Escape, clicking outside the dialog, or navigating away also cancels deletion (TC-015, TC-018). |
+| 9 | **UI feedback after successful deletion** — The AC only states the program is removed from the list. There is no mention of a success toast, notification, or any other feedback to the user. |
+| 10 | **Undo / restore capability** — No AC mentions whether a deleted program can be restored. If an undo mechanism exists, additional test cases are needed. |
+| 11 | **Concurrent deletion** — If two admins attempt to delete the same program simultaneously, the expected behaviour (e.g., second request returns 404 gracefully) is not defined. |
+| 12 | **Admin login precondition** — Neither AC scenario states that the user must be logged in as admin, though the story description implies admin-only delete access. |

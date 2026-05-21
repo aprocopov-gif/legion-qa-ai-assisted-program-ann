@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 const BASE_URL = process.env.DIDAXIS_URL!;
+const DATA_PREFIX = "AP_";
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const testProgramName = (label: string) => `${DATA_PREFIX}${label} ${Date.now()}`;
+const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
 
 async function createProgram(page: any, name: string, description = "") {
   await page.goto(`${BASE_URL}/programs`);
@@ -11,25 +15,21 @@ async function createProgram(page: any, name: string, description = "") {
     await modal.getByRole("textbox", { name: "Description" }).fill(description);
   }
   await modal.getByRole("button", { name: "Create" }).click();
-  await expect(
-    page.getByRole("cell", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).first()
-  ).toBeVisible();
+  await expect(page.getByRole("cell", { name: new RegExp(esc(name)) }).first()).toBeVisible();
 }
 
 async function deleteProgram(page: any, name: string) {
   await page.goto(`${BASE_URL}/programs`);
   page.once("dialog", (dialog: any) => dialog.accept());
   await page
-    .getByRole("row", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })
+    .getByRole("row", { name: new RegExp(esc(name)) })
     .first()
     .getByRole("button", { name: "🗑" })
     .click();
 }
 
 function nameRow(page: any, name: string) {
-  return page
-    .getByRole("row", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })
-    .first();
+  return page.getByRole("row", { name: new RegExp(esc(name)) }).first();
 }
 
 test.describe("DS-5: Program List Display", () => {
@@ -43,8 +43,8 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-001 — Programs page shows each program's name and description
   test("TC-001: Programs page shows each program's name and description", async ({ page }) => {
-    const name = `Display Test ${Date.now()}`;
-    const description = "Full-stack web development curriculum";
+    const name = testProgramName("Display Test");
+    const description = testDescription("Full-stack web development curriculum");
     await createProgram(page, name, description);
 
     await page.goto(`${BASE_URL}/programs`);
@@ -77,8 +77,8 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-003 — A single program is displayed correctly in the program list
   test("TC-003: A single program is displayed with its name and description", async ({ page }) => {
-    const name = `Single Program ${Date.now()}`;
-    const description = "A test program for QA purposes";
+    const name = testProgramName("Single Program");
+    const description = testDescription("A test program for QA purposes");
     await createProgram(page, name, description);
 
     await page.goto(`${BASE_URL}/programs`);
@@ -91,8 +91,8 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-004 — Newly created program appears in the list without requiring a manual reload
   test("TC-004: Newly created program appears in the list without a page reload", async ({ page }) => {
-    const name = `Immediate Appear ${Date.now()}`;
-    const description = "Applied machine learning and statistics";
+    const name = testProgramName("Immediate Appear");
+    const description = testDescription("Applied machine learning and statistics");
 
     await page.goto(`${BASE_URL}/programs`);
     await page.getByRole("button", { name: "+ New Program" }).click();
@@ -109,8 +109,8 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-005 — Empty state is replaced by the program list after the first program is created
   test("TC-005: Program list appears after a program is created", async ({ page }) => {
-    const name = `First Entry ${Date.now()}`;
-    const description = "A test program";
+    const name = testProgramName("First Entry");
+    const description = testDescription("A test program");
 
     await page.goto(`${BASE_URL}/programs`);
     await page.getByRole("button", { name: "+ New Program" }).click();
@@ -127,10 +127,10 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-006 — Program list is still accessible and intact after a page reload
   test("TC-006: Program list is intact after a page reload", async ({ page }) => {
-    const nameA = `Reload A ${Date.now()}`;
-    const nameB = `Reload B ${Date.now() + 1}`;
-    const descA = "Description A reload test";
-    const descB = "Description B reload test";
+    const nameA = testProgramName("Reload A");
+    const nameB = testProgramName("Reload B");
+    const descA = testDescription("Description A reload test");
+    const descB = testDescription("Description B reload test");
 
     await createProgram(page, nameA, descA);
     await createProgram(page, nameB, descB);
@@ -181,7 +181,7 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-010 — Empty-state prompt does not appear when programs exist
   test("TC-010: Empty-state prompt is not shown when programs exist", async ({ page }) => {
-    const name = `Has Programs ${Date.now()}`;
+    const name = testProgramName("Has Programs");
     await createProgram(page, name);
 
     await page.goto(`${BASE_URL}/programs`);
@@ -193,20 +193,20 @@ test.describe("DS-5: Program List Display", () => {
   // TC-011 — Program with a maximum-length name is displayed without overflow
   test("TC-011: Program with a maximum-length name is displayed without layout breakage", async ({ page }) => {
     const suffix = String(Date.now());
-    const maxName = "A".repeat(255 - suffix.length) + suffix;
+    const maxName = DATA_PREFIX + "A".repeat(255 - DATA_PREFIX.length - suffix.length) + suffix;
 
     await createProgram(page, maxName);
     await page.goto(`${BASE_URL}/programs`);
 
-    const row = page.getByRole("row", { name: new RegExp(suffix) }).first();
+    const row = page.getByRole("row", { name: new RegExp(esc(suffix)) }).first();
     await expect(row).toBeVisible();
     await expect(row.getByRole("cell").first()).toBeVisible();
   });
 
   // TC-012 — Program with a maximum-length description is displayed without layout breakage
   test("TC-012: Program with a maximum-length description is displayed without layout breakage", async ({ page }) => {
-    const name = `Max Desc ${Date.now()}`;
-    const maxDesc = "B".repeat(500);
+    const name = testProgramName("Max Desc");
+    const maxDesc = testDescription("B".repeat(500 - DATA_PREFIX.length));
 
     await createProgram(page, name, maxDesc);
     await page.goto(`${BASE_URL}/programs`);
@@ -218,9 +218,8 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-013 — Program with special characters is displayed correctly (no HTML encoding)
   test("TC-013: Program with special characters is displayed without encoding artifacts", async ({ page }) => {
-    const name = `Informatique & IA ${Date.now()}`;
-    const description = "Cours d'IA & ML: niveau avancé (100%)";
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const name = `${DATA_PREFIX}Informatique & IA ${Date.now()}`;
+    const description = testDescription("Cours d'IA & ML: niveau avancé (100%)");
 
     await createProgram(page, name, description);
     await page.goto(`${BASE_URL}/programs`);
@@ -239,19 +238,18 @@ test.describe("DS-5: Program List Display", () => {
       dialog.dismiss();
     });
 
-    const name = `Plain Text ${Date.now()} <b>Bold</b>`;
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const name = `${DATA_PREFIX}Plain Text ${Date.now()} <b>Bold</b>`;
 
     await createProgram(page, name);
     await page.goto(`${BASE_URL}/programs`);
 
-    await expect(page.getByRole("cell", { name: new RegExp(escaped) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
     expect(alertFired).toBe(false);
   });
 
   // TC-015 — Program with whitespace-only description shows a graceful empty state
   test("TC-015: Program with whitespace-only description shows graceful empty state in the cell", async ({ page }) => {
-    const name = `Whitespace Desc ${Date.now()}`;
+    const name = testProgramName("Whitespace Desc");
 
     await page.goto(`${BASE_URL}/programs`);
     await page.getByRole("button", { name: "+ New Program" }).click();
@@ -274,7 +272,7 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-016 — Program with a blank (empty) description is displayed without error
   test("TC-016: Program with no description is displayed without error", async ({ page }) => {
-    const name = `No Desc Program ${Date.now()}`;
+    const name = testProgramName("No Desc Program");
 
     await createProgram(page, name);
     await page.goto(`${BASE_URL}/programs`);
@@ -288,7 +286,7 @@ test.describe("DS-5: Program List Display", () => {
   test("TC-017: Program list with multiple programs loads within 5 seconds", async ({ page }) => {
     const names: string[] = [];
     for (let i = 0; i < 5; i++) {
-      const name = `Perf Program ${Date.now()}-${i}`;
+      const name = testProgramName(`Perf Program ${i}`);
       names.push(name);
       await createProgram(page, name);
     }
@@ -305,8 +303,8 @@ test.describe("DS-5: Program List Display", () => {
   // TC-018 — Program with Unicode and multilingual characters is displayed correctly
   test("TC-018: Program with Unicode and multilingual characters is displayed correctly", async ({ page }) => {
     const timestamp = Date.now();
-    const name = `Programmation Niveau ${timestamp} 高级`;
-    const description = "面向对象编程 & algorithms";
+    const name = `${DATA_PREFIX}Programmation Niveau ${timestamp} 高级`;
+    const description = testDescription("面向对象编程 & algorithms");
 
     await createProgram(page, name, description);
     await page.goto(`${BASE_URL}/programs`);
@@ -318,7 +316,7 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-019 — Two programs with identical names are both displayed in the list
   test("TC-019: Two programs with identical names are both shown as separate rows", async ({ page }) => {
-    const name = `Duplicate Display ${Date.now()}`;
+    const name = testProgramName("Duplicate Display");
 
     await createProgram(page, name);
     await createProgram(page, name);
@@ -326,7 +324,7 @@ test.describe("DS-5: Program List Display", () => {
     await page.goto(`${BASE_URL}/programs`);
     await page.getByRole("table").waitFor({ state: "visible" });
 
-    const cells = page.getByRole("cell", { name: new RegExp(name) });
+    const cells = page.getByRole("cell", { name: new RegExp(esc(name)) });
     const count = await cells.count();
 
     // App allows duplicates (confirmed from DS-3 TC-020): both rows must be visible
@@ -335,8 +333,11 @@ test.describe("DS-5: Program List Display", () => {
 
   // TC-020 — Programs list order is consistent across page reloads
   test("TC-020: Programs list order is consistent across page reloads", async ({ page }) => {
-    const ts = Date.now();
-    const names = [`Order Alpha ${ts}`, `Order Beta ${ts + 1}`, `Order Gamma ${ts + 2}`];
+    const names = [
+      testProgramName("Order Alpha"),
+      testProgramName("Order Beta"),
+      testProgramName("Order Gamma"),
+    ];
     for (const n of names) {
       await createProgram(page, n);
     }

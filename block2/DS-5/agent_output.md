@@ -1,12 +1,59 @@
 # Test Plan: Program List Filtering and Display
 
+> **Jira:** [DS-5](https://legionqaschool.atlassian.net/browse/DS-5) — Program list filtering and display  
+> **Type:** Story | **Status:** In Progress | **Priority:** Low | **Label:** `program-setup`  
+> **Assignee:** Kid KiddosBA
+
+## User Story (from Jira)
+
+As an admin user, I want to see all programs in a clear list so that I can quickly find and manage them.
+
+## Jira Acceptance Criteria
+
+```gherkin
+Scenario: Display program list with key details
+  Given programs exist in the system
+  When I navigate to the Programs page
+  Then I see a list showing each program's name and description
+
+Scenario: Empty state when no programs exist
+  Given no programs exist
+  When I navigate to the Programs page
+  Then I see a message indicating no programs have been created
+  And I see a prompt to create the first program
+```
+
+## AC Coverage
+
+| Jira AC Scenario | Covered by |
+|---|---|
+| Display program list with key details | TC-001, TC-003, TC-004, TC-006, TC-010, TC-011, TC-012, TC-013, TC-014, TC-015, TC-016, TC-017, TC-018, TC-019 |
+| Empty state when no programs exist | TC-002, TC-005 |
+| Empty state must not appear when programs exist (inverse of AC 2) | TC-003, TC-005, TC-010 |
+
+> **Test data convention:** All program names created during DS-5 testing use the `AP_` prefix (plus a timestamp suffix in Playwright) so test data is identifiable in Didaxis. Jira AC examples use generic names such as "Test Program".  
+> **Playwright implementation:** `tests/ds5-program-list-display.spec.ts`
+
+## Known Defects (from Jira)
+
+| Jira | Summary | Blocked TCs | Status |
+|---|---|---|---|
+| [DS-74](https://legionqaschool.atlassian.net/browse/DS-74) | Second program creation blocked on Programs page | TC-001, TC-005, TC-017 | To Do (Medium) |
+| [DS-75](https://legionqaschool.atlassian.net/browse/DS-75) | Duplicate program names not distinguishable in list | TC-019 | To Do (High) |
+| [DS-76](https://legionqaschool.atlassian.net/browse/DS-76) | Page refresh data consistency check times out | TC-006, TC-020 | To Do (Low) |
+| [DS-73](https://legionqaschool.atlassian.net/browse/DS-73) | Program row management action icons missing | TC-001, TC-003 (row completeness) | To Do (High) |
+| [DS-72](https://legionqaschool.atlassian.net/browse/DS-72) | Programs API 500 shows empty state instead of error | TC-002 (error-path variant) | To Do (Medium) |
+| [DS-35](https://legionqaschool.atlassian.net/browse/DS-35) | Programs API 500 shows empty state instead of error (duplicate of DS-72) | TC-002 (error-path variant) | To Do (Medium) |
+
+> **Note:** Jira defect tickets reference TC numbers from an earlier `block5` test run. The **Blocked TCs** column above maps each defect to this Block2 test plan (`TC-001`–`TC-020`).
+
 ---
 
 ## Positive Flows
 
 ### TC-001 — Programs page shows each program's name and description
 
-**Preconditions:** User is logged in as admin; programs "Web Development 2026" (description: "Full-stack web development curriculum") and "Data Science 2026" (description: "Applied machine learning and statistics") exist
+**Preconditions:** Admin user is logged in; programs "AP_Web Development 2026" (description: "AP_Full-stack web development curriculum") and "AP_Data Science 2026" (description: "AP_Applied machine learning and statistics") exist
 
 **Steps:**
 1. Navigate to the Programs page
@@ -20,7 +67,7 @@
 
 ### TC-002 — Empty state message and create prompt are shown when no programs exist
 
-**Preconditions:** User is logged in as admin; no programs exist in the system
+**Preconditions:** Admin user is logged in; no programs exist in the system
 
 **Steps:**
 1. Navigate to the Programs page
@@ -34,13 +81,13 @@
 
 ### TC-003 — A single program is displayed correctly in the program list
 
-**Preconditions:** User is logged in as admin; exactly one program named "Test Program" (description: "A test program for QA purposes") exists
+**Preconditions:** Admin user is logged in; exactly one program named "AP_Test Program" (description: "AP_A test program for QA purposes") exists
 
 **Steps:**
 1. Navigate to the Programs page
 2. Inspect the list
 
-**Expected result:** One row is shown containing the name "Test Program" and the description "A test program for QA purposes"; no empty-state message is visible
+**Expected result:** One row is shown containing the name "AP_Test Program" and the description "AP_A test program for QA purposes"; no empty-state message is visible
 
 **Priority:** High
 
@@ -48,16 +95,15 @@
 
 ### TC-004 — Newly created program appears in the list without requiring a manual reload
 
-**Preconditions:** User is logged in as admin; the Programs page is open; at least one program exists in the list
+**Preconditions:** Admin user is logged in; the Programs page is open
 
 **Steps:**
 1. Click the "+ New Program" button
-2. Enter "Data Science 2026" as the program name and "Applied machine learning and statistics" as the description
-3. Fill all other required fields with valid values
-4. Click the Create button
-5. Observe the program list
+2. Enter "AP_Data Science 2026" as the program name and "AP_Applied machine learning and statistics" as the description
+3. Click the Create button
+4. Observe the program list
 
-**Expected result:** "Data Science 2026" appears in the list immediately after creation, without requiring a page reload; the name and description are displayed correctly
+**Expected result:** "AP_Data Science 2026" appears in the list immediately after creation, without requiring a page reload; the name and description are displayed correctly in the program cell (stacked name + description paragraphs)
 
 **Priority:** High
 
@@ -65,15 +111,15 @@
 
 ### TC-005 — Empty state is replaced by the program list after the first program is created
 
-**Preconditions:** User is logged in as admin; no programs exist; the Programs page is showing the empty-state message
+**Preconditions:** Admin user is logged in; no programs exist; the Programs page is showing the empty-state message
 
 **Steps:**
 1. Click the create prompt on the empty-state screen (or "+ New Program")
-2. Enter "Test Program" as the program name and "A test program" as the description
+2. Enter "AP_Test Program" as the program name and "AP_A test program" as the description
 3. Submit the form
 4. Observe the Programs page
 
-**Expected result:** The empty-state message is no longer visible; the program list is shown with "Test Program" as the first entry
+**Expected result:** The empty-state message is no longer visible; the program list table is shown with "AP_Test Program" as an entry; name and description are displayed in the row
 
 **Priority:** High
 
@@ -81,7 +127,7 @@
 
 ### TC-006 — Program list is still accessible after a page reload
 
-**Preconditions:** User is logged in as admin; "Web Development 2026" and "Data Science 2026" exist
+**Preconditions:** Admin user is logged in; "AP_Web Development 2026" and "AP_Data Science 2026" exist
 
 **Steps:**
 1. Navigate to the Programs page and verify both programs are listed
@@ -123,13 +169,13 @@
 
 ### TC-009 — Programs from other organisations are not shown in the list
 
-**Preconditions:** User is logged in as admin of Organisation A; Organisation B has a program named "Org B Program"; Organisation A has a program named "Org A Program"
+**Preconditions:** Admin user is logged in of Organisation A; Organisation B has a program named "AP_Org B Program"; Organisation A has a program named "AP_Org A Program"
 
 **Steps:**
 1. Navigate to the Programs page as the Organisation A admin
 2. Inspect the program list
 
-**Expected result:** Only "Org A Program" is visible; "Org B Program" does not appear in the list
+**Expected result:** Only "AP_Org A Program" is visible; "AP_Org B Program" does not appear in the list
 
 **Priority:** High
 
@@ -137,7 +183,7 @@
 
 ### TC-010 — The empty-state prompt does not appear when programs exist
 
-**Preconditions:** User is logged in as admin; at least one program exists
+**Preconditions:** Admin user is logged in; at least one program exists
 
 **Steps:**
 1. Navigate to the Programs page
@@ -153,7 +199,7 @@
 
 ### TC-011 — Program with a maximum-length name is displayed without overflow or truncation artefacts
 
-**Preconditions:** User is logged in as admin; a program with a 255-character name (e.g., "A" repeated 255 times) and description "Edge case program" exists
+**Preconditions:** Admin user is logged in; a program with a 255-character name prefixed with `AP_` (e.g., `AP_` + "A" repeated to 255 chars total) and description "AP_Edge case program" exists
 
 **Steps:**
 1. Navigate to the Programs page
@@ -167,11 +213,11 @@
 
 ### TC-012 — Program with a maximum-length description is displayed without layout breakage
 
-**Preconditions:** User is logged in as admin; a program named "Test Program" with a 500-character description (e.g., "B" repeated 500 times) exists
+**Preconditions:** Admin user is logged in; a program named "AP_Test Program" with a 500-character description prefixed with `AP_` (e.g., `AP_` + "B" repeated to 500 chars total) exists
 
 **Steps:**
 1. Navigate to the Programs page
-2. Inspect the description for "Test Program"
+2. Inspect the description for "AP_Test Program"
 
 **Expected result:** The description is rendered (fully or truncated by design); the row height and page layout remain intact; no text overflows outside its container
 
@@ -181,11 +227,11 @@
 
 ### TC-013 — Program with special characters in name and description is displayed correctly
 
-**Preconditions:** User is logged in as admin; a program named "Informatique & IA - Niveau 2" with description "Cours d'IA & ML: niveau avancé (100%)" exists
+**Preconditions:** Admin user is logged in; a program named "AP_Informatique & IA - Niveau 2" with description "AP_Cours d'IA & ML: niveau avancé (100%)" exists
 
 **Steps:**
 1. Navigate to the Programs page
-2. Inspect the row for "Informatique & IA - Niveau 2"
+2. Inspect the row for "AP_Informatique & IA - Niveau 2"
 
 **Expected result:** The name and description are rendered as literal text; `&` is displayed as `&` (not `&amp;`); `%`, `-`, and accented characters are displayed correctly
 
@@ -195,7 +241,7 @@
 
 ### TC-014 — Program name and description containing HTML tags are rendered as plain text
 
-**Preconditions:** User is logged in as admin; a program named `<b>Bold Program</b>` with description `<script>alert('xss')</script>` exists (entered via API or if creation permits it)
+**Preconditions:** Admin user is logged in; a program named "AP_<b>Bold Program</b>" with description `<script>alert('xss')</script>` exists
 
 **Steps:**
 1. Navigate to the Programs page
@@ -209,11 +255,11 @@
 
 ### TC-015 — Program with a description containing only whitespace shows a graceful empty or trimmed state
 
-**Preconditions:** User is logged in as admin; a program named "Whitespace Description Program" with a description of "   " (three spaces) exists
+**Preconditions:** Admin user is logged in; a program named "AP_Whitespace Description Program" with a description of "   " (three spaces) exists
 
 **Steps:**
 1. Navigate to the Programs page
-2. Inspect the description for "Whitespace Description Program"
+2. Inspect the description for "AP_Whitespace Description Program"
 
 **Expected result:** The description either appears empty or displays a placeholder (e.g., "—" or "No description"); no raw whitespace string is rendered; no layout shift occurs
 
@@ -223,11 +269,11 @@
 
 ### TC-016 — Program with a blank (empty) description is displayed without error
 
-**Preconditions:** User is logged in as admin; a program named "No Description Program" was created with no description provided
+**Preconditions:** Admin user is logged in; a program named "AP_No Description Program" was created with no description provided
 
 **Steps:**
 1. Navigate to the Programs page
-2. Inspect the row for "No Description Program"
+2. Inspect the row for "AP_No Description Program"
 
 **Expected result:** The program name is displayed; the description field shows a graceful empty state (e.g., blank, dash, or "No description available"); no error message or broken layout appears
 
@@ -237,7 +283,7 @@
 
 ### TC-017 — Program list with a large number of programs is paginated or scrollable without performance degradation
 
-**Preconditions:** User is logged in as admin; a large number of programs exist with varying names and descriptions
+**Preconditions:** Admin user is logged in; at least 10 programs with `AP_`-prefixed names exist with varying descriptions
 
 **Steps:**
 1. Navigate to the Programs page
@@ -252,7 +298,7 @@
 
 ### TC-018 — Program with Unicode and multilingual characters in name and description is displayed correctly
 
-**Preconditions:** User is logged in as admin; a program named "Programmation C++ — Niveau 3 (高级)" with description "面向对象编程 & algorithms" exists
+**Preconditions:** Admin user is logged in; a program named "AP_Programmation C++ — Niveau 3 (高级)" with description "AP_面向对象编程 & algorithms" exists
 
 **Steps:**
 1. Navigate to the Programs page
@@ -266,11 +312,11 @@
 
 ### TC-019 — Two programs with identical names are both displayed in the list
 
-**Preconditions:** User is logged in as admin; two programs both named "Data Science 2026" exist (assuming the system allows duplicates, or they were created via API)
+**Preconditions:** Admin user is logged in; two programs both named "AP_Data Science 2026" exist with different descriptions (system allows duplicates per DS-3)
 
 **Steps:**
 1. Navigate to the Programs page
-2. Count the number of rows named "Data Science 2026"
+2. Count the number of rows named "AP_Data Science 2026"
 
 **Expected result:** Both entries appear as separate rows; neither entry is silently deduplicated or hidden; each row shows its own description
 
@@ -280,14 +326,14 @@
 
 ### TC-020 — Programs list order is consistent across page reloads
 
-**Preconditions:** User is logged in as admin; programs "Web Development 2026", "Data Science 2026", and "Test Program" exist
+**Preconditions:** Admin user is logged in; programs "AP_Web Development 2026", "AP_Data Science 2026", and "AP_Test Program" exist
 
 **Steps:**
-1. Navigate to the Programs page and note the order of the three programs
+1. Navigate to the Programs page and note the relative order of the three test programs
 2. Reload the page
-3. Compare the order
+3. Compare the order of the same three programs
 
-**Expected result:** The programs appear in the same order after reload; the sort order is deterministic (e.g., alphabetical by name, or by creation date descending) and does not change randomly between loads
+**Expected result:** The three test programs appear in the same relative order after reload; the sort order is deterministic and does not change randomly between loads
 
 **Priority:** Medium
 
@@ -309,3 +355,5 @@
 | 10 | **Search and filtering** — The story title mentions "filtering" but neither AC describes a filter or search capability. It is unclear whether filtering is in scope for this story or a separate one. |
 | 11 | **List layout** — The AC does not specify whether name and description appear in separate columns or share a single cell. UI inspection shows a single "Program" column with stacked name and description text. |
 | 12 | **Admin login precondition** — Neither AC scenario states that the user must be logged in as admin, though the story description implies admin access. |
+| 13 | **API error handling** — No AC defines behaviour when the programs API returns an error (e.g., HTTP 500). Known defects [DS-72](https://legionqaschool.atlassian.net/browse/DS-72) / [DS-35](https://legionqaschool.atlassian.net/browse/DS-35) show an empty state instead of an error message; no dedicated TC covers this path. |
+| 14 | **Row management actions** — AC covers name and description display only; edit/delete controls in each row are not specified. [DS-73](https://legionqaschool.atlassian.net/browse/DS-73) reports missing action icons on program rows. |

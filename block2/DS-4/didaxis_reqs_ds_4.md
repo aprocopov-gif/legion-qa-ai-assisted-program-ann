@@ -12,9 +12,10 @@ Write Playwright tests for deleting a program with a confirmation dialog on Dida
   - Sign In button: `getByRole('button', { name: 'Sign In' })`
 - Programs page: /programs
   - New Program button: `getByRole('button', { name: '+ New Program' })`
-  - Delete icon per row: `getByRole('button', { name: '🗑' })`
+  - Delete button per row: `getByRole('button', { name: /Delete programName/ })`
+    - Accessible name is `Delete {ProgramName}` (trash icon rendered as `<img>`, not 🗑 emoji)
     - To target a specific row:
-      `page.getByRole('row', { name: /programName/ }).getByRole('button', { name: '🗑' }).click()`
+      `page.getByRole('row', { name: /programName/ }).getByRole('button', { name: /Delete programName/ }).click()`
 - Confirmation dialog: **native browser `window.confirm()` dialog** (not a Mantine/React modal)
   - Must be handled with `page.once('dialog', dialog => dialog.accept())` to confirm
   - Must be handled with `page.once('dialog', dialog => dialog.dismiss())` to cancel
@@ -49,7 +50,7 @@ async function deleteProgram(page, name) {
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('row', { name: new RegExp(name) })
     .first()
-    .getByRole('button', { name: '🗑' })
+    .getByRole('button', { name: new RegExp(`Delete ${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) })
     .click();
 }
 ```

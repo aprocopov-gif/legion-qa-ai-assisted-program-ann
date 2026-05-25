@@ -1,12 +1,26 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page, type Dialog } from "@playwright/test";
 
 const BASE_URL = process.env.DIDAXIS_URL!;
 const DATA_PREFIX = "AP_";
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const testProgramName = (label: string) => `${DATA_PREFIX}${label} ${Date.now()}`;
-const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
 
-async function createProgram(page: any, name: string, description = "") {
+function rowDeleteButton(page: Page, name: string) {
+  return page
+    .getByRole("row", { name: new RegExp(esc(name)) })
+    .first()
+    .getByRole("button", { name: new RegExp(`Delete ${esc(name)}`) });
+}
+
+function programNameCell(page: Page, name: string) {
+  return page.getByRole("cell", { name, exact: true });
+}
+
+function programRow(page: Page, name: string) {
+  return page.getByRole("row").filter({ has: programNameCell(page, name) });
+}
+
+async function createProgram(page: Page, name: string, description = "") {
   await page.goto(`${BASE_URL}/programs`);
   await page.getByRole("button", { name: "+ New Program" }).click();
   const modal = page.getByRole("dialog", { name: "New Program" });
@@ -15,17 +29,18 @@ async function createProgram(page: any, name: string, description = "") {
     await modal.getByRole("textbox", { name: "Description" }).fill(description);
   }
   await modal.getByRole("button", { name: "Create" }).click();
-  await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "New Program" })).not.toBeVisible();
+  await expect(programNameCell(page, name)).toBeVisible();
 }
 
-async function deleteProgram(page: any, name: string) {
+async function clickDeleteIcon(page: Page, name: string) {
+  await rowDeleteButton(page, name).click();
+}
+
+async function deleteProgram(page: Page, name: string) {
   await page.goto(`${BASE_URL}/programs`);
-  page.once("dialog", (dialog: any) => dialog.accept());
-  await page
-    .getByRole("row", { name: new RegExp(esc(name)) })
-    .first()
-    .getByRole("button", { name: "🗑" })
-    .click();
+  page.once("dialog", (dialog: Dialog) => dialog.accept());
+  await clickDeleteIcon(page, name);
 }
 
 test.describe("DS-4: Delete Program", () => {
@@ -43,14 +58,10 @@ test.describe("DS-4: Delete Program", () => {
     await createProgram(page, name);
 
     await page.goto(`${BASE_URL}/programs`);
-    page.once("dialog", (dialog: any) => dialog.accept());
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    page.once("dialog", (dialog: Dialog) => dialog.accept());
+    await clickDeleteIcon(page, name);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).not.toBeVisible();
+    await expect(programRow(page, name)).toHaveCount(0);
   });
 
   // TC-002 — Cancelling the confirmation dialog leaves the program intact
@@ -59,14 +70,10 @@ test.describe("DS-4: Delete Program", () => {
     await createProgram(page, name);
 
     await page.goto(`${BASE_URL}/programs`);
-    page.once("dialog", (dialog: any) => dialog.dismiss());
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    page.once("dialog", (dialog: Dialog) => dialog.dismiss());
+    await clickDeleteIcon(page, name);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-003 — Deleting one program does not affect other programs in the list
@@ -78,8 +85,8 @@ test.describe("DS-4: Delete Program", () => {
 
     await deleteProgram(page, nameA);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(nameA)) })).not.toBeVisible();
-    await expect(page.getByRole("cell", { name: new RegExp(esc(nameB)) })).toBeVisible();
+    await expect(programRow(page, nameA)).toHaveCount(0);
+    await expect(programRow(page, nameB).first()).toBeVisible();
   });
 
   // TC-004 — Deleted program name becomes available for a new program
@@ -93,8 +100,9 @@ test.describe("DS-4: Delete Program", () => {
     const modal = page.getByRole("dialog", { name: "New Program" });
     await modal.getByRole("textbox", { name: "Program Name" }).fill(name);
     await modal.getByRole("button", { name: "Create" }).click();
+    await expect(page.getByRole("dialog", { name: "New Program" })).not.toBeVisible();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-005 — Confirmation dialog displays the correct program name
@@ -104,18 +112,14 @@ test.describe("DS-4: Delete Program", () => {
 
     await page.goto(`${BASE_URL}/programs`);
     let dialogMessage = "";
-    page.once("dialog", (dialog: any) => {
+    page.once("dialog", (dialog: Dialog) => {
       dialogMessage = dialog.message();
       dialog.dismiss();
     });
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    await clickDeleteIcon(page, name);
 
     expect(dialogMessage).toContain(name);
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-006 — Deletion is persisted after a page reload
@@ -127,7 +131,7 @@ test.describe("DS-4: Delete Program", () => {
     await page.reload();
     await page.waitForURL(`${BASE_URL}/programs`);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).not.toBeVisible();
+    await expect(programRow(page, name)).toHaveCount(0);
   });
 
   // TC-007 — Non-admin user does not see the delete icon
@@ -144,7 +148,7 @@ test.describe("DS-4: Delete Program", () => {
     await page.waitForURL(`${BASE_URL}/`);
     await page.goto(`${BASE_URL}/programs`);
 
-    await expect(page.getByRole("button", { name: "🗑" }).first()).not.toBeVisible();
+    await expect(page.getByRole("button", { name: /^Delete / })).toHaveCount(0);
   });
 
   // TC-008 — Dismissing the confirmation dialog (equivalent of X button) leaves the program intact
@@ -153,14 +157,10 @@ test.describe("DS-4: Delete Program", () => {
     await createProgram(page, name);
 
     await page.goto(`${BASE_URL}/programs`);
-    page.once("dialog", (dialog: any) => dialog.dismiss());
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    page.once("dialog", (dialog: Dialog) => dialog.dismiss());
+    await clickDeleteIcon(page, name);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-009 — Network failure during deletion shows an error and leaves the program intact
@@ -170,7 +170,7 @@ test.describe("DS-4: Delete Program", () => {
 
     await page.goto(`${BASE_URL}/programs`);
 
-    await page.route("**", (route: any) => {
+    await page.route("**", (route) => {
       if (route.request().method() === "DELETE") {
         route.abort();
       } else {
@@ -178,18 +178,13 @@ test.describe("DS-4: Delete Program", () => {
       }
     });
 
-    page.once("dialog", (dialog: any) => dialog.accept());
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    page.once("dialog", (dialog: Dialog) => dialog.accept());
+    await clickDeleteIcon(page, name);
 
-    await page.waitForTimeout(2000);
     await page.unrouteAll();
 
     await page.goto(`${BASE_URL}/programs`);
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-010 — Direct API call without admin credentials is rejected
@@ -212,7 +207,7 @@ test.describe("DS-4: Delete Program", () => {
 
     expect([401, 403, 404]).toContain(response.status());
     await page.goto(`${BASE_URL}/programs`);
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-011 — Clicking Cancel (dismiss) multiple times does not accumulate side effects
@@ -222,55 +217,56 @@ test.describe("DS-4: Delete Program", () => {
 
     await page.goto(`${BASE_URL}/programs`);
 
-    for (let i = 0; i < 5; i++) {
-      page.once("dialog", (dialog: any) => dialog.dismiss());
-      await page
-        .getByRole("row", { name: new RegExp(esc(name)) })
-        .first()
-        .getByRole("button", { name: "🗑" })
-        .click();
+    for (let i = 0; i < 6; i++) {
+      page.once("dialog", (dialog: Dialog) => dialog.dismiss());
+      await clickDeleteIcon(page, name);
       await page.waitForTimeout(300);
     }
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
-  // TC-012 — Deleting the only program shows an empty-state or clean table
-  test("TC-012: Deleting a program and verifying it no longer appears in the list", async ({ page }) => {
+  // TC-012 — Deleting the only program in the list shows an empty-state message
+  test("TC-012: Deleting a program removes it from the list; empty-state when no programs remain", async ({ page }) => {
     const name = testProgramName("Solo Program");
     await createProgram(page, name);
 
     await page.goto(`${BASE_URL}/programs`);
-    page.once("dialog", (dialog: any) => dialog.accept());
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    page.once("dialog", (dialog: Dialog) => dialog.accept());
+    await clickDeleteIcon(page, name);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).not.toBeVisible();
+    await expect(programRow(page, name)).toHaveCount(0);
+
+    const remainingDeleteButtons = await page.getByRole("button", { name: /^Delete / }).count();
+    if (remainingDeleteButtons === 0) {
+      const emptyIndicator = page.getByText(/no programs|create your first/i);
+      const tableVisible = await page.getByRole("table").isVisible().catch(() => false);
+      const tableGone = !tableVisible;
+      const onlyHeaderRow = tableVisible && (await page.getByRole("row").count()) <= 1;
+      expect(
+        tableGone ||
+          onlyHeaderRow ||
+          (await emptyIndicator.isVisible().catch(() => false))
+      ).toBe(true);
+    }
   });
 
   // TC-013 — Program with special characters in its name can be deleted
   test("TC-013: Program with special characters in its name can be deleted", async ({ page }) => {
-    const name = `${DATA_PREFIX}Informatique & IA ${Date.now()}`;
+    const name = `${DATA_PREFIX}Informatique & IA - Niveau 2 ${Date.now()}`;
     await createProgram(page, name);
 
     await page.goto(`${BASE_URL}/programs`);
     let dialogMessage = "";
-    page.once("dialog", (dialog: any) => {
+    page.once("dialog", (dialog: Dialog) => {
       dialogMessage = dialog.message();
       dialog.accept();
     });
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    await clickDeleteIcon(page, name);
 
     expect(dialogMessage).toContain("&");
     expect(dialogMessage).not.toContain("&amp;");
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).not.toBeVisible();
+    await expect(programRow(page, name)).toHaveCount(0);
   });
 
   // TC-014 — Program with a maximum-length name can be deleted
@@ -281,14 +277,10 @@ test.describe("DS-4: Delete Program", () => {
     await createProgram(page, maxName);
 
     await page.goto(`${BASE_URL}/programs`);
-    page.once("dialog", (dialog: any) => dialog.accept());
-    await page
-      .getByRole("row", { name: new RegExp(esc(suffix)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    page.once("dialog", (dialog: Dialog) => dialog.accept());
+    await clickDeleteIcon(page, maxName);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(suffix)) })).not.toBeVisible();
+    await expect(programRow(page, maxName)).toHaveCount(0);
   });
 
   // TC-015 — Dismissing the dialog (equivalent of Escape) cancels deletion
@@ -297,14 +289,10 @@ test.describe("DS-4: Delete Program", () => {
     await createProgram(page, name);
 
     await page.goto(`${BASE_URL}/programs`);
-    page.once("dialog", (dialog: any) => dialog.dismiss());
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    page.once("dialog", (dialog: Dialog) => dialog.dismiss());
+    await clickDeleteIcon(page, name);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-016 — Only one deletion occurs (native dialog prevents double-click exploit)
@@ -313,21 +301,17 @@ test.describe("DS-4: Delete Program", () => {
     await createProgram(page, name);
 
     let dialogCount = 0;
-    page.on("dialog", (dialog: any) => {
+    page.on("dialog", (dialog: Dialog) => {
       dialogCount++;
       dialog.accept();
     });
 
     await page.goto(`${BASE_URL}/programs`);
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    await clickDeleteIcon(page, name);
 
     await page.waitForTimeout(1000);
     expect(dialogCount).toBe(1);
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).not.toBeVisible();
+    await expect(programRow(page, name)).toHaveCount(0);
   });
 
   // TC-017 — Native confirm dialog blocks background interaction (inherently modal)
@@ -339,40 +323,32 @@ test.describe("DS-4: Delete Program", () => {
 
     await page.goto(`${BASE_URL}/programs`);
     let dialogCount = 0;
-    page.once("dialog", (dialog: any) => {
+    page.once("dialog", (dialog: Dialog) => {
       dialogCount++;
       dialog.dismiss();
     });
 
-    await page
-      .getByRole("row", { name: new RegExp(esc(nameA)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    await clickDeleteIcon(page, nameA);
 
     await page.waitForTimeout(500);
     expect(dialogCount).toBe(1);
-    await expect(page.getByRole("cell", { name: new RegExp(esc(nameA)) })).toBeVisible();
-    await expect(page.getByRole("cell", { name: new RegExp(esc(nameB)) })).toBeVisible();
+    await expect(programRow(page, nameA).first()).toBeVisible();
+    await expect(programRow(page, nameB).first()).toBeVisible();
   });
 
-  // TC-018 — Navigating away while dialog is pending does not delete the program
+  // TC-018 — Navigating away from the page while the confirmation dialog is open does not delete the program
   test("TC-018: Navigating away while dialog is pending does not delete the program", async ({ page }) => {
     const name = testProgramName("Nav Away");
     await createProgram(page, name);
 
     await page.goto(`${BASE_URL}/programs`);
-    page.once("dialog", (dialog: any) => dialog.dismiss());
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    page.once("dialog", (dialog: Dialog) => dialog.dismiss());
+    await clickDeleteIcon(page, name);
 
     await page.goto(`${BASE_URL}/`);
     await page.goto(`${BASE_URL}/programs`);
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-019 — Program with HTML tags in its name displays as plain text in the confirmation dialog
@@ -384,7 +360,7 @@ test.describe("DS-4: Delete Program", () => {
     await page.goto(`${BASE_URL}/programs`);
     let dialogMessage = "";
     let alertFired = false;
-    page.on("dialog", (dialog: any) => {
+    page.on("dialog", (dialog: Dialog) => {
       if (dialog.type() === "alert") {
         alertFired = true;
         dialog.dismiss();
@@ -394,14 +370,10 @@ test.describe("DS-4: Delete Program", () => {
       }
     });
 
-    await page
-      .getByRole("row", { name: new RegExp(esc(name)) })
-      .first()
-      .getByRole("button", { name: "🗑" })
-      .click();
+    await clickDeleteIcon(page, name);
 
     expect(alertFired).toBe(false);
     expect(dialogMessage).toContain("<b>Bold</b>");
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).not.toBeVisible();
+    await expect(programRow(page, name)).toHaveCount(0);
   });
 });

@@ -26,7 +26,7 @@ async function openEditModal(page: Page, programName: string) {
   await page
     .getByRole("row", { name: new RegExp(esc(programName)) })
     .first()
-    .getByRole("button", { name: "✏️" })
+    .getByRole("button", { name: new RegExp(`Edit ${esc(programName)}`) })
     .click();
 
   const modal = page.getByRole("dialog", { name: "Edit Program" });
@@ -82,7 +82,7 @@ test.describe("DS-2: Edit Program", () => {
     await modal.getByRole("button", { name: "Save" }).click();
 
     await expect(page.getByRole("dialog", { name: "Edit Program" })).not.toBeVisible();
-    await expect(page.getByRole("cell", { name: new RegExp(esc(updatedName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(updatedName)) }).first()).toBeVisible();
     await expect(page.getByRole("row", { name: new RegExp(esc(originalName)) })).not.toBeVisible();
   });
 
@@ -207,7 +207,7 @@ test.describe("DS-2: Edit Program", () => {
 
     await page.goto(`${BASE_URL}/programs`);
 
-    await expect(page.getByRole("button", { name: "✏️" }).first()).not.toBeVisible();
+    await expect(page.getByRole("button", { name: /^Edit / }).first()).not.toBeVisible();
   });
 
   // TC-011 — Navigating away mid-edit without saving discards changes
@@ -266,7 +266,7 @@ test.describe("DS-2: Edit Program", () => {
     await modal.getByRole("textbox", { name: "Program Name" }).fill(specialName);
     await modal.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(specialName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(specialName)) }).first()).toBeVisible();
   });
 
   // TC-015 — Program Name with HTML/script tags does not execute
@@ -320,7 +320,7 @@ test.describe("DS-2: Edit Program", () => {
     await modal.getByRole("textbox", { name: "Program Name" }).fill(`  ${trimmedName}  `);
     await modal.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(trimmedName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(trimmedName)) }).first()).toBeVisible();
   });
 
   // TC-018 — Description field at maximum allowed length is accepted
@@ -333,7 +333,7 @@ test.describe("DS-2: Edit Program", () => {
     await modal.getByRole("textbox", { name: "Description" }).fill(maxDescription);
     await modal.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) }).first()).toBeVisible();
   });
 
   // TC-019 — Rapid double-click on Save does not submit the form twice
@@ -394,6 +394,6 @@ test.describe("DS-2: Edit Program", () => {
       .catch(() => false);
     const errorShown = await page.getByRole("alert").isVisible().catch(() => false);
     expect(modalStillOpen || errorShown).toBe(true);
-    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(name)) }).first()).toBeVisible();
   });
 });

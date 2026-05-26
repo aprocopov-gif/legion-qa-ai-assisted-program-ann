@@ -39,7 +39,7 @@ test.describe("DS-1: Create Program", () => {
     await modal.getByRole("textbox", { name: "Description" }).fill(description);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) }).first()).toBeVisible();
   });
 
   // TC-003 — Admin successfully creates a program with only the required field
@@ -53,7 +53,7 @@ test.describe("DS-1: Create Program", () => {
     await modal.getByRole("textbox", { name: "Program Name" }).fill(programName);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) }).first()).toBeVisible();
   });
 
   // TC-004 — Create button is enabled when Program Name is filled
@@ -135,7 +135,7 @@ test.describe("DS-1: Create Program", () => {
     await modal.getByRole("button", { name: "Cancel" }).click();
 
     await expect(page.getByRole("dialog", { name: "New Program" })).not.toBeVisible();
-    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) })).not.toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) }).first()).not.toBeVisible();
   });
 
   // TC-010 — Program Name at maximum allowed length is accepted
@@ -185,7 +185,7 @@ test.describe("DS-1: Create Program", () => {
     await modal.getByRole("textbox", { name: "Program Name" }).fill(programName);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) }).first()).toBeVisible();
   });
 
   // TC-013 — Program Name with HTML/script tags does not execute
@@ -250,7 +250,7 @@ test.describe("DS-1: Create Program", () => {
     await modal.getByRole("textbox", { name: "Description" }).fill(maxDescription);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) }).first()).toBeVisible();
   });
 
   // TC-016 — Newly created program appears in the list without a page refresh
@@ -265,7 +265,7 @@ test.describe("DS-1: Create Program", () => {
     await modal.getByRole("button", { name: "Create" }).click();
 
     await expect(page.getByRole("dialog", { name: "New Program" })).not.toBeVisible();
-    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(programName)) }).first()).toBeVisible();
   });
 
   // TC-017 — Program Name with leading/trailing whitespace is trimmed
@@ -280,6 +280,6 @@ test.describe("DS-1: Create Program", () => {
     await modal.getByRole("textbox", { name: "Program Name" }).fill(paddedName);
     await modal.getByRole("button", { name: "Create" }).click();
 
-    await expect(page.getByRole("cell", { name: new RegExp(esc(baseName)) })).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(esc(baseName)) }).first()).toBeVisible();
   });
 });

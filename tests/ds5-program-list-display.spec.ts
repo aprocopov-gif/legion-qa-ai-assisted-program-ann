@@ -7,16 +7,21 @@ const testProgramName = (label: string) => `${DATA_PREFIX}${label} ${Date.now()}
 const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
 
 function programNameCell(page: Page, name: string) {
-  return page.getByRole("cell", { name, exact: true });
+  return programRowsByName(page, name).first().getByRole("cell").first();
 }
 
 function programRow(page: Page, name: string) {
-  return page.getByRole("row").filter({ has: programNameCell(page, name) });
+  return programRowsByName(page, name);
 }
 
 function programRowsByName(page: Page, name: string) {
   return page.getByRole("row").filter({
-    has: page.getByRole("cell").first().locator("p").first().filter({ hasText: name }),
+    has: page
+      .getByRole("cell")
+      .first()
+      .locator("p")
+      .first()
+      .filter({ hasText: new RegExp(`^${esc(name)}$`) }),
   });
 }
 
@@ -64,8 +69,7 @@ test.describe("DS-5: Program List Display", () => {
   });
 
   // TC-001 — Programs page shows each program's name and description
-  // test.fail() documents known defect DS-74: second program creation blocked on Programs page
-  test.fail("TC-001: Programs page shows each program's name and description", async ({ page }) => {
+  test("TC-001: Programs page shows each program's name and description", async ({ page }) => {
     const nameA = testProgramName("Web Development 2026");
     const nameB = testProgramName("Data Science 2026");
     const descA = testDescription("Full-stack web development curriculum");
@@ -155,8 +159,7 @@ test.describe("DS-5: Program List Display", () => {
   });
 
   // TC-006 — Program list is still accessible and intact after a page reload
-  // test.fail() documents known defect DS-76: page refresh data consistency check times out
-  test.fail("TC-006: Program list is intact after a page reload", async ({ page }) => {
+  test("TC-006: Program list is intact after a page reload", async ({ page }) => {
     const nameA = testProgramName("Reload A");
     const nameB = testProgramName("Reload B");
     const descA = testDescription("Description A reload test");
@@ -276,9 +279,10 @@ test.describe("DS-5: Program List Display", () => {
 
     await page.goto(`${BASE_URL}/programs`);
     await expect(programNameCell(page, name).first()).toBeVisible();
-    await expect(programNameParagraph(page, name)).not.toContainText("<b>");
+    await expect(programNameParagraph(page, name)).toHaveText(name);
     await expect(programDescParagraph(page, name)).toHaveText(description);
-    await expect(programDescParagraph(page, name)).not.toContainText("<script>");
+    await expect(programRowsByName(page, name).first().locator("b")).toHaveCount(0);
+    await expect(programRowsByName(page, name).first().locator("script")).toHaveCount(0);
     expect(alertFired).toBe(false);
   });
 
@@ -324,8 +328,7 @@ test.describe("DS-5: Program List Display", () => {
   });
 
   // TC-017 — Program list with multiple programs loads within acceptable time
-  // test.fail() documents known defect DS-74: second program creation blocked on Programs page
-  test.fail("TC-017: Program list with multiple programs loads within 5 seconds", async ({ page }) => {
+  test("TC-017: Program list with multiple programs loads within 5 seconds", async ({ page }) => {
     const names: string[] = [];
     for (let i = 0; i < 10; i++) {
       const name = testProgramName(`Perf Program ${i}`);
@@ -358,8 +361,7 @@ test.describe("DS-5: Program List Display", () => {
   });
 
   // TC-019 — Two programs with identical names are both displayed in the list
-  // test.fail() documents known defect DS-75: duplicate program names not distinguishable in list
-  test.fail("TC-019: Two programs with identical names are both shown as separate rows", async ({ page }) => {
+  test("TC-019: Two programs with identical names are both shown as separate rows", async ({ page }) => {
     const name = testProgramName("Data Science 2026");
     const descA = testDescription("First duplicate entry");
     const descB = testDescription("Second duplicate entry");
@@ -370,14 +372,14 @@ test.describe("DS-5: Program List Display", () => {
     await page.goto(`${BASE_URL}/programs`);
     await page.getByRole("table").waitFor({ state: "visible" });
 
-    await expect(programRowsByName(page, name)).toHaveCount(2);
-    await expect(page.getByText(descA)).toBeVisible();
-    await expect(page.getByText(descB)).toBeVisible();
+    const duplicateRows = programRowsByName(page, name);
+    await expect(duplicateRows).toHaveCount(2);
+    await expect(duplicateRows.filter({ hasText: descA })).toHaveCount(1);
+    await expect(duplicateRows.filter({ hasText: descB })).toHaveCount(1);
   });
 
   // TC-020 — Programs list order is consistent across page reloads
-  // test.fail() documents known defect DS-76: page refresh data consistency check times out
-  test.fail("TC-020: Programs list order is consistent across page reloads", async ({ page }) => {
+  test("TC-020: Programs list order is consistent across page reloads", async ({ page }) => {
     const names = [
       testProgramName("Order Alpha"),
       testProgramName("Order Beta"),

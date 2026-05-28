@@ -1,84 +1,160 @@
+import dotenv from 'dotenv';
+import path from 'node:path';
 import {
   deleteProgram,
   fetchAllPrograms,
   getDidaxisConfig,
   type DeleteProgramResult,
-} from "../support/delete-program";
+  type ProgramRecord,
+} from '../support/delete-program';
 
-type CliArgs = {
-  dryRun: boolean;
+dotenv.config({ path: path.join(process.cwd(), '.env') });
+
+async function getAllPrograms(): Promise<ProgramRecord[]> {
+  const { baseUrl, token } = getDidaxisConfig();
+  return fetchAllPrograms(baseUrl, token);
+}
+
+async function deleteProgramsByIds(ids: string[]): Promise<DeleteProgramResult[]> {
+  const { baseUrl, token } = getDidaxisConfig();
+  const results: DeleteProgramResult[] = [];
+  for (const id of ids) {
+    const result = await deleteProgram(baseUrl, token, id);
+    results.push(result);
+  }
+  return results;
+}
+
+type CliOptions = {
+  all: boolean;
   ids: string[];
+  dryRun: boolean;
 };
 
-function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = {
-    dryRun: false,
+function parseArgs(argv: string[]): CliOptions {
+  const options: CliOptions = {
+    all: false,
     ids: [],
+    dryRun: false,
   };
 
-  for (let index = 0; index < argv.length; index++) {
-    const value = argv[index];
-    if (value === "--dry-run") {
-      args.dryRun = true;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+
+    if (arg === '--all') {
+      options.all = true;
       continue;
     }
 
-    if (value === "--id") {
-      const id = argv[index + 1];
+    if (arg === '--dry-run') {
+      options.dryRun = true;
+      continue;
+    }
+
+    if (arg === '--id') {
+      const id = argv[i + 1];
       if (!id) {
-        throw new Error("Missing value after --id");
+        throw new Error('Missing value for --id');
       }
-      args.ids.push(id);
-      index += 1;
+      options.ids.push(id);
+      i += 1;
       continue;
     }
+
+    throw new Error(`Unknown argument: ${arg}`);
   }
 
-  return args;
+  if (!options.all && options.ids.length === 0) {
+    options.all = true;
+  }
+
+  return options;
 }
 
-function printSummary(scope: string, found: number, deleted: string[], failed: DeleteProgramResult[]) {
-  console.log(`**Scope:** ${scope}`);
-  console.log(`**Found via GET:** ${found}`);
-  console.log(`**Deleted:** ${deleted.length > 0 ? deleted.join(", ") : "none"}`);
-  if (failed.length === 0) {
-    console.log("**Failed:** none");
-  } else {
-    const failures = failed.map((item) => `${item.id} (${item.status}) ${item.message}`).join(" | ");
-    console.log(`**Failed:** ${failures}`);
+function printUsage(): void {
+  console.log(`Usage:
+  npx tsx .agents/skills/didaxis-program-deleter/scripts/delete-programs.ts [options]
+
+Options:
+  --all              Fetch all program UUIDs via GET /api/programs, then delete each one
+  --id <uuid>        Delete a specific program UUID (repeatable)
+  --dry-run          Print targets without calling DELETE
+
+Examples:
+  npx tsx .agents/skills/didaxis-program-deleter/scripts/delete-programs.ts
+  npx tsx .agents/skills/didaxis-program-deleter/scripts/delete-programs.ts --all --dry-run
+  npx tsx .agents/skills/didaxis-program-deleter/scripts/delete-programs.ts --id 3eb19aa5-6901-42ce-b510-0a8abcba513f`);
+}
+
+function printResults(results: Awaited<ReturnType<typeof deleteProgramsByIds>>): void {
+  const deleted = results.filter((result) => result.ok);
+  const failed = results.filter((result) => !result.ok);
+
+  console.log(`Deleted: ${deleted.length}`);
+  for (const result of deleted) {
+    console.log(`- ${result.id}`);
+  }
+
+  if (failed.length > 0) {
+    console.log(`Failed: ${failed.length}`);
+    for (const result of failed) {
+      console.warn(`- ${result.id}: ${result.status} ${result.message}`);
+    }
   }
 }
 
-async function main() {
-  const { dryRun, ids } = parseArgs(process.argv.slice(2));
-  const { baseUrl, token } = getDidaxisConfig();
-
-  const allPrograms = await fetchAllPrograms(baseUrl, token);
-  const allIds = allPrograms.map((program) => program.id);
-  const targetIds = ids.length > 0 ? ids : allIds;
-  const scope = ids.length > 0 ? "specific UUID(s)" : "all programs";
-
-  if (dryRun) {
-    printSummary(scope, allIds.length, targetIds, []);
+async function main(): Promise<void> {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    printUsage();
     return;
   }
 
-  const deleted: string[] = [];
-  const failed: DeleteProgramResult[] = [];
+  const options = parseArgs(process.argv.slice(2));
 
-  for (const id of targetIds) {
-    const result = await deleteProgram(baseUrl, token, id);
-    if (result.ok || result.status === 404) {
-      deleted.push(id);
-      continue;
+  if (options.all) {
+    const programs = await getAllPrograms();
+
+    if (programs.length === 0) {
+      console.log('No programs found via GET /api/programs.');
+      return;
     }
-    failed.push(result);
+
+    console.log(`Target program(s): ${programs.length}`);
+    for (const program of programs) {
+      console.log(`- ${program.id} (${program.name})`);
+    }
+
+    if (options.dryRun) {
+      console.log('Dry run only. No programs were deleted.');
+      return;
+    }
+
+    const results = await deleteProgramsByIds(programs.map((program) => program.id));
+    printResults(results);
+    return;
   }
 
-  printSummary(scope, allIds.length, deleted, failed);
+  if (options.ids.length === 0) {
+    console.log('No program UUIDs to delete.');
+    return;
+  }
+
+  console.log(`Target program(s): ${options.ids.length}`);
+  for (const id of options.ids) {
+    console.log(`- ${id}`);
+  }
+
+  if (options.dryRun) {
+    console.log('Dry run only. No programs were deleted.');
+    return;
+  }
+
+  const results = await deleteProgramsByIds(options.ids);
+  printResults(results);
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  printUsage();
   process.exitCode = 1;
 });

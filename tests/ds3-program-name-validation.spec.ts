@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type CleanupFixtures } from "../fixtures/cleanup.fixture";
+import type { Page } from "@playwright/test";
 
 const BASE_URL = process.env.DIDAXIS_URL!;
 const DATA_PREFIX = "AP_";
@@ -6,8 +7,27 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const testProgramName = (label: string) => `${DATA_PREFIX}${label} ${Date.now()}`;
 const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
 
+function wireProgramTracking(page: Page, trackProgram: CleanupFixtures["trackProgram"]) {
+  page.on("response", async (response) => {
+    if (response.request().method() !== "POST" || !response.ok() || !response.url().includes("/api/programs")) {
+      return;
+    }
+
+    try {
+      const payload = (await response.json()) as { id?: string; data?: { id?: string } };
+      const id = typeof payload.id === "string" ? payload.id : payload.data?.id;
+      if (id) {
+        trackProgram(id);
+      }
+    } catch {
+      // Ignore non-JSON responses from creation endpoint.
+    }
+  });
+}
+
 test.describe("DS-3: Program Name Validation", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, trackProgram }) => {
+    wireProgramTracking(page, trackProgram);
     await page.goto(`${BASE_URL}/login`);
     await page.getByRole("textbox", { name: "Email" }).fill(process.env.DIDAXIS_EMAIL!);
     await page.getByRole("textbox", { name: "Password" }).fill(process.env.DIDAXIS_PASSWORD!);

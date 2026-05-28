@@ -1,9 +1,28 @@
-import { test, expect, type Page, type Dialog } from "@playwright/test";
+import { test, expect, type CleanupFixtures } from "../fixtures/cleanup.fixture";
+import type { Page, Dialog } from "@playwright/test";
 
 const BASE_URL = process.env.DIDAXIS_URL!;
 const DATA_PREFIX = "AP_";
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const testProgramName = (label: string) => `${DATA_PREFIX}${label} ${Date.now()}`;
+
+function wireProgramTracking(page: Page, trackProgram: CleanupFixtures["trackProgram"]) {
+  page.on("response", async (response) => {
+    if (response.request().method() !== "POST" || !response.ok() || !response.url().includes("/api/programs")) {
+      return;
+    }
+
+    try {
+      const payload = (await response.json()) as { id?: string; data?: { id?: string } };
+      const id = typeof payload.id === "string" ? payload.id : payload.data?.id;
+      if (id) {
+        trackProgram(id);
+      }
+    } catch {
+      // Ignore non-JSON responses from creation endpoint.
+    }
+  });
+}
 
 function rowDeleteButton(page: Page, name: string) {
   return page
@@ -44,7 +63,8 @@ async function deleteProgram(page: Page, name: string) {
 }
 
 test.describe("DS-4: Delete Program", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, trackProgram }) => {
+    wireProgramTracking(page, trackProgram);
     await page.goto(`${BASE_URL}/login`);
     await page.getByRole("textbox", { name: "Email" }).fill(process.env.DIDAXIS_EMAIL!);
     await page.getByRole("textbox", { name: "Password" }).fill(process.env.DIDAXIS_PASSWORD!);
@@ -197,8 +217,8 @@ test.describe("DS-4: Delete Program", () => {
     const name = testProgramName("API Auth Test");
     await createProgram(page, name);
 
-    const programRow = page.getByRole("row", { name: new RegExp(esc(name)) }).first();
-    const rowText = await programRow.textContent();
+    const programRowLocator = page.getByRole("row", { name: new RegExp(esc(name)) }).first();
+    const rowText = await programRowLocator.textContent();
     const idMatch = rowText?.match(/\d{3,}/);
 
     const response = await page.request.delete(`${BASE_URL}/api/programs/${idMatch?.[0] ?? "1"}`, {

@@ -1,12 +1,16 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 import {
   deleteProgram,
   getDidaxisConfig,
-} from "../.agents/skills/didaxis-program-deleter/support/delete-program";
+} from '../.agents/skills/didaxis-program-deleter/support/delete-program';
 
-const PROGRAM_IDS_FILE = path.join("playwright", ".tmp", "created-program-ids.txt");
+const PROGRAM_IDS_FILE = path.join(
+  'playwright',
+  '.tmp',
+  'created-program-ids.txt',
+);
 
 type CleanupSummary = {
   tracked: number;
@@ -17,20 +21,29 @@ type CleanupSummary = {
 export async function cleanupProgramsFromFile(
   idsFilePath = PROGRAM_IDS_FILE,
 ): Promise<CleanupSummary> {
-  let rawIds = "";
+  let rawIds = '';
   try {
-    rawIds = await fs.readFile(idsFilePath, "utf8");
+    rawIds = await fs.readFile(idsFilePath, 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      console.log("[cleanup-programs] No created program IDs file found.");
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      console.log('[cleanup-programs] No created program IDs file found.');
       return { tracked: 0, cleaned: 0, failed: 0 };
     }
     throw error;
   }
 
-  const ids = [...new Set(rawIds.split(/\r?\n/).map((line) => line.trim()).filter(Boolean))];
+  const ids = [
+    ...new Set(
+      rawIds
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean),
+    ),
+  ];
   if (ids.length === 0) {
-    console.log("[cleanup-programs] Program IDs file is empty. Nothing to clean.");
+    console.log(
+      '[cleanup-programs] Program IDs file is empty. Nothing to clean.',
+    );
     return { tracked: 0, cleaned: 0, failed: 0 };
   }
 
@@ -59,14 +72,16 @@ export async function cleanupProgramsFromFile(
   }
 
   await fs.mkdir(path.dirname(idsFilePath), { recursive: true });
-  await fs.writeFile(idsFilePath, "", "utf8");
+  await fs.writeFile(idsFilePath, '', 'utf8');
 
   const cleaned = ids.length - failed.length;
   console.log(
     `[cleanup-programs] Cleanup from file: tracked=${ids.length}, cleaned=${cleaned}, failed=${failed.length}`,
   );
   if (failed.length > 0) {
-    console.warn(`[cleanup-programs] Failed deletes: ${JSON.stringify(failed)}`);
+    console.warn(
+      `[cleanup-programs] Failed deletes: ${JSON.stringify(failed)}`,
+    );
   }
 
   return { tracked: ids.length, cleaned, failed: failed.length };

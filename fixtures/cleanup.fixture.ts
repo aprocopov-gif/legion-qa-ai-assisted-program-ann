@@ -1,6 +1,6 @@
-import { expect, request, test as base } from "@playwright/test";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { expect, request, test as base } from '@playwright/test';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 type CleanupFixtures = {
   trackProgram: (uuid: string) => void;
@@ -12,7 +12,11 @@ type DeleteResult = {
   body: string;
 };
 
-const PROGRAM_IDS_FILE = path.join("playwright", ".tmp", "created-program-ids.txt");
+const PROGRAM_IDS_FILE = path.join(
+  'playwright',
+  '.tmp',
+  'created-program-ids.txt',
+);
 
 const test = base.extend<{}, CleanupFixtures>({
   trackProgram: [
@@ -25,7 +29,7 @@ const test = base.extend<{}, CleanupFixtures>({
           trackedIds.add(normalized);
           try {
             fs.mkdirSync(path.dirname(PROGRAM_IDS_FILE), { recursive: true });
-            fs.appendFileSync(PROGRAM_IDS_FILE, `${normalized}\n`, "utf8");
+            fs.appendFileSync(PROGRAM_IDS_FILE, `${normalized}\n`, 'utf8');
           } catch (error) {
             console.warn(
               `[cleanup.fixture] Failed to write program ID to file: ${
@@ -44,7 +48,7 @@ const test = base.extend<{}, CleanupFixtures>({
       const token = process.env.DIDAXIS_API_TOKEN;
       if (!baseUrl || !token) {
         console.warn(
-          "[cleanup.fixture] Skipping cleanup: missing DIDAXIS_URL or DIDAXIS_API_TOKEN."
+          '[cleanup.fixture] Skipping cleanup: missing DIDAXIS_URL or DIDAXIS_API_TOKEN.',
         );
         return;
       }
@@ -74,14 +78,16 @@ const test = base.extend<{}, CleanupFixtures>({
       await api.dispose();
 
       console.log(
-        `[cleanup.fixture] Tracked ${trackedIds.size} program(s). Cleaned ${deleted.length}.`
+        `[cleanup.fixture] Tracked ${trackedIds.size} program(s). Cleaned ${deleted.length}.`,
       );
 
       if (failed.length > 0) {
-        console.warn(`[cleanup.fixture] Failed deletes: ${JSON.stringify(failed)}`);
+        console.warn(
+          `[cleanup.fixture] Failed deletes: ${JSON.stringify(failed)}`,
+        );
       }
     },
-    { scope: "worker" },
+    { scope: 'worker' },
   ],
 });
 

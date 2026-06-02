@@ -15,7 +15,9 @@ async function getAllPrograms(): Promise<ProgramRecord[]> {
   return fetchAllPrograms(baseUrl, token);
 }
 
-async function deleteProgramsByIds(ids: string[]): Promise<DeleteProgramResult[]> {
+async function deleteProgramsByIds(
+  ids: string[],
+): Promise<DeleteProgramResult[]> {
   const { baseUrl, token } = getDidaxisConfig();
   const results: DeleteProgramResult[] = [];
   for (const id of ids) {
@@ -86,7 +88,9 @@ Examples:
   npx tsx .agents/skills/didaxis-program-deleter/scripts/delete-programs.ts --id 3eb19aa5-6901-42ce-b510-0a8abcba513f`);
 }
 
-function printResults(results: Awaited<ReturnType<typeof deleteProgramsByIds>>): void {
+function printResults(
+  results: Awaited<ReturnType<typeof deleteProgramsByIds>>,
+): void {
   const deleted = results.filter((result) => result.ok);
   const failed = results.filter((result) => !result.ok);
 
@@ -129,7 +133,9 @@ async function main(): Promise<void> {
       return;
     }
 
-    const results = await deleteProgramsByIds(programs.map((program) => program.id));
+    const results = await deleteProgramsByIds(
+      programs.map((program) => program.id),
+    );
     printResults(results);
     return;
   }

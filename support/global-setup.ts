@@ -2,14 +2,14 @@ import {
   deleteProgram,
   fetchAllPrograms,
   getDidaxisConfig,
-} from "../.agents/skills/didaxis-program-deleter/support/delete-program";
-import { PROGRAM_IDS_FILE } from "./cleanup-programs";
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
+} from '../.agents/skills/didaxis-program-deleter/support/delete-program';
+import { PROGRAM_IDS_FILE } from './cleanup-programs';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 async function globalSetup() {
   await fs.mkdir(path.dirname(PROGRAM_IDS_FILE), { recursive: true });
-  await fs.writeFile(PROGRAM_IDS_FILE, "", "utf8");
+  await fs.writeFile(PROGRAM_IDS_FILE, '', 'utf8');
 
   let cfg: { baseUrl: string; token: string };
   try {
@@ -25,11 +25,11 @@ async function globalSetup() {
 
   const programs = await fetchAllPrograms(cfg.baseUrl, cfg.token);
   const targets = programs.filter((program) =>
-    (program.name ?? "").startsWith("AP_"),
+    (program.name ?? '').startsWith('AP_'),
   );
 
   if (targets.length === 0) {
-    console.log("[global-setup] No AP_ programs to clean.");
+    console.log('[global-setup] No AP_ programs to clean.');
     return;
   }
 
@@ -37,7 +37,11 @@ async function globalSetup() {
   for (const program of targets) {
     const result = await deleteProgram(cfg.baseUrl, cfg.token, program.id);
     if (!result.ok && result.status !== 404) {
-      failed.push({ id: result.id, status: result.status, message: result.message });
+      failed.push({
+        id: result.id,
+        status: result.status,
+        message: result.message,
+      });
     }
   }
 

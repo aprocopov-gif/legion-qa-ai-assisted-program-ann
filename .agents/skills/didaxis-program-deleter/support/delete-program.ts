@@ -1,4 +1,4 @@
-import * as dotenv from "dotenv";
+import * as dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -23,21 +23,24 @@ export function getDidaxisConfig() {
   const token = process.env.DIDAXIS_API_TOKEN;
 
   if (!baseUrl) {
-    throw new Error("Missing DIDAXIS_URL in environment.");
+    throw new Error('Missing DIDAXIS_URL in environment.');
   }
   if (!token) {
-    throw new Error("Missing DIDAXIS_API_TOKEN in environment.");
+    throw new Error('Missing DIDAXIS_API_TOKEN in environment.');
   }
 
   return { baseUrl, token };
 }
 
-export async function fetchAllPrograms(baseUrl: string, token: string): Promise<ProgramRecord[]> {
+export async function fetchAllPrograms(
+  baseUrl: string,
+  token: string,
+): Promise<ProgramRecord[]> {
   const response = await fetch(`${baseUrl}/api/programs`, {
-    method: "GET",
+    method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
+      Accept: 'application/json',
     },
   });
 
@@ -50,12 +53,16 @@ export async function fetchAllPrograms(baseUrl: string, token: string): Promise<
   return payload.data ?? [];
 }
 
-export async function deleteProgram(baseUrl: string, token: string, id: string): Promise<DeleteProgramResult> {
+export async function deleteProgram(
+  baseUrl: string,
+  token: string,
+  id: string,
+): Promise<DeleteProgramResult> {
   const response = await fetch(`${baseUrl}/api/programs/${id}`, {
-    method: "DELETE",
+    method: 'DELETE',
     headers: {
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
+      Accept: 'application/json',
     },
   });
 

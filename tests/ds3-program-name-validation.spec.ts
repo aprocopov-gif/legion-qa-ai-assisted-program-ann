@@ -28,11 +28,6 @@ function wireProgramTracking(page: Page, trackProgram: CleanupFixtures["trackPro
 test.describe("DS-3: Program Name Validation", () => {
   test.beforeEach(async ({ page, trackProgram }) => {
     wireProgramTracking(page, trackProgram);
-    await page.goto(`${BASE_URL}/login`);
-    await page.getByRole("textbox", { name: "Email" }).fill(process.env.DIDAXIS_EMAIL!);
-    await page.getByRole("textbox", { name: "Password" }).fill(process.env.DIDAXIS_PASSWORD!);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL(`${BASE_URL}/`);
   });
 
   // TC-001 — Program name with special characters is accepted and rendered correctly

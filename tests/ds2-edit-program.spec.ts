@@ -55,11 +55,6 @@ async function openEditModal(page: Page, programName: string) {
 test.describe("DS-2: Edit Program", () => {
   test.beforeEach(async ({ page, trackProgram }) => {
     wireProgramTracking(page, trackProgram);
-    await page.goto(`${BASE_URL}/login`);
-    await page.getByRole("textbox", { name: "Email" }).fill(process.env.DIDAXIS_EMAIL!);
-    await page.getByRole("textbox", { name: "Password" }).fill(process.env.DIDAXIS_PASSWORD!);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL(`${BASE_URL}/`);
   });
 
   // TC-001 — Edit form opens pre-populated with the program's current data

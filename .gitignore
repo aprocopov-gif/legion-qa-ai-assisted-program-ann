@@ -11,6 +11,7 @@ test-results/
 blob-report/
 playwright/.cache/
 playwright/.auth/
+playwright/.tmp/
 
 # MCP / Cursor local artifacts
 .playwright-mcp/

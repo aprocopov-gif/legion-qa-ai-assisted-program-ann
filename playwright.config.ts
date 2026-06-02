@@ -20,6 +20,8 @@ if (
 
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./support/global-setup.ts",
+  globalTeardown: "./support/global-teardown.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -29,5 +31,18 @@ export default defineConfig({
     baseURL: process.env.DIDAXIS_URL ?? "https://test.didaxis.studio",
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "setup",
+      testMatch: /.*\.setup\.ts/,
+    },
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "playwright/.auth/user.json",
+      },
+      dependencies: ["setup"],
+    },
+  ],
 });

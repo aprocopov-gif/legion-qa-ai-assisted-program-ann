@@ -48,14 +48,6 @@ async function trackProgramsByName(
 }
 
 test.describe("DS-1: Create Program", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
-    await page.getByRole("textbox", { name: "Email" }).fill(process.env.DIDAXIS_EMAIL!);
-    await page.getByRole("textbox", { name: "Password" }).fill(process.env.DIDAXIS_PASSWORD!);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL(`${BASE_URL}/`);
-  });
-
   // TC-001 — Program creation form is accessible to admin
   test("TC-001: New Program modal contains required fields and Create button", async ({ page }) => {
     await page.goto(`${BASE_URL}/programs`);

@@ -26,7 +26,7 @@ function wireProgramTracking(page: Page, trackProgram: CleanupFixtures["trackPro
 }
 
 function programNameCell(page: Page, name: string) {
-  return programRowsByName(page, name).first().getByRole("cell").first();
+  return page.getByRole("cell", { name: new RegExp(esc(name)) }).first();
 }
 
 function programRow(page: Page, name: string) {
@@ -34,14 +34,7 @@ function programRow(page: Page, name: string) {
 }
 
 function programRowsByName(page: Page, name: string) {
-  return page.getByRole("row").filter({
-    has: page
-      .getByRole("cell")
-      .first()
-      .locator("p")
-      .first()
-      .filter({ hasText: new RegExp(`^${esc(name)}$`) }),
-  });
+  return page.getByRole("row", { name: new RegExp(esc(name)) });
 }
 
 function programNameParagraph(page: Page, name: string) {
@@ -81,11 +74,6 @@ async function getRelativeOrder(page: Page, names: string[]) {
 test.describe("DS-5: Program List Display", () => {
   test.beforeEach(async ({ page, trackProgram }) => {
     wireProgramTracking(page, trackProgram);
-    await page.goto(`${BASE_URL}/login`);
-    await page.getByRole("textbox", { name: "Email" }).fill(process.env.DIDAXIS_EMAIL!);
-    await page.getByRole("textbox", { name: "Password" }).fill(process.env.DIDAXIS_PASSWORD!);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL(`${BASE_URL}/`);
   });
 
   // TC-001 — Programs page shows each program's name and description
@@ -424,6 +412,8 @@ test.describe("DS-5: Program List Display", () => {
 });
 
 test.describe("DS-5: Program List Display — unauthenticated access", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   // TC-007 — Unauthenticated user is redirected away from the Programs page
   test("TC-007: Unauthenticated user is redirected to the login page", async ({ page }) => {
     await page.goto(`${BASE_URL}/programs`);

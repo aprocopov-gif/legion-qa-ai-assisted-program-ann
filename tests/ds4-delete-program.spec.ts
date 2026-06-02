@@ -65,11 +65,6 @@ async function deleteProgram(page: Page, name: string) {
 test.describe("DS-4: Delete Program", () => {
   test.beforeEach(async ({ page, trackProgram }) => {
     wireProgramTracking(page, trackProgram);
-    await page.goto(`${BASE_URL}/login`);
-    await page.getByRole("textbox", { name: "Email" }).fill(process.env.DIDAXIS_EMAIL!);
-    await page.getByRole("textbox", { name: "Password" }).fill(process.env.DIDAXIS_PASSWORD!);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL(`${BASE_URL}/`);
   });
 
   // TC-001 — Confirmed deletion removes the program from the program list

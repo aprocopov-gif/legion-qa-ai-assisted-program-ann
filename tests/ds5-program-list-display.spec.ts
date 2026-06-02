@@ -4,10 +4,11 @@ import {
   type CleanupFixtures,
 } from '../fixtures/cleanup.fixture';
 import type { Page } from '@playwright/test';
+import { LoginPage } from '../pages/login.page';
+import { ProgramsPage } from '../pages/programs.page';
 
 const BASE_URL = process.env.DIDAXIS_URL!;
 const DATA_PREFIX = 'AP_';
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const testProgramName = (label: string) =>
   `${DATA_PREFIX}${label} ${Date.now()}`;
 const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
@@ -41,7 +42,8 @@ function wireProgramTracking(
 }
 
 function programNameCell(page: Page, name: string) {
-  return page.getByRole('cell', { name: new RegExp(esc(name)) }).first();
+  const programs = new ProgramsPage(page);
+  return programs.nameCell(name);
 }
 
 function programRow(page: Page, name: string) {
@@ -49,40 +51,32 @@ function programRow(page: Page, name: string) {
 }
 
 function programRowsByName(page: Page, name: string) {
-  return page.getByRole('row', { name: new RegExp(esc(name)) });
+  const programs = new ProgramsPage(page);
+  return programs.row(name);
 }
 
 function programNameParagraph(page: Page, name: string) {
-  return programRowsByName(page, name)
-    .first()
-    .getByRole('cell')
-    .first()
-    .locator('p')
-    .first();
+  const programs = new ProgramsPage(page);
+  return programs.nameParagraph(name);
 }
 
 function programDescParagraph(page: Page, name: string) {
-  return programRowsByName(page, name)
-    .first()
-    .getByRole('cell')
-    .first()
-    .locator('p')
-    .nth(1);
+  const programs = new ProgramsPage(page);
+  return programs.descriptionParagraph(name);
 }
 
 async function createProgram(page: Page, name: string, description = '') {
-  await page.goto(`${BASE_URL}/programs`);
-  await page.getByRole('button', { name: '+ New Program' }).click();
-  const modal = page.getByRole('dialog', { name: 'New Program' });
-  await modal.getByRole('textbox', { name: 'Program Name' }).fill(name);
+  const programs = new ProgramsPage(page);
+  await programs.goto();
+  await programs.openNewProgram();
+  const modal = programs.newProgramModal;
+  await modal.fillProgramName(name);
   if (description) {
-    await modal.getByRole('textbox', { name: 'Description' }).fill(description);
+    await modal.fillDescription(description);
   }
-  await modal.getByRole('button', { name: 'Create' }).click();
-  await expect(
-    page.getByRole('dialog', { name: 'New Program' }),
-  ).not.toBeVisible();
-  await expect(programNameCell(page, name).first()).toBeVisible();
+  await modal.submit();
+  await expect(modal.dialog).not.toBeVisible();
+  await expect(programNameCell(page, name)).toBeVisible();
 }
 
 async function getRelativeOrder(page: Page, names: string[]) {
@@ -107,6 +101,7 @@ test.describe('DS-5: Program List Display', () => {
   test("TC-001: Programs page shows each program's name and description", async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const nameA = testProgramName('Web Development 2026');
     const nameB = testProgramName('Data Science 2026');
     const descA = testDescription('Full-stack web development curriculum');
@@ -115,7 +110,7 @@ test.describe('DS-5: Program List Display', () => {
     await createProgram(page, nameA, descA);
     await createProgram(page, nameB, descB);
 
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     await expect(programNameParagraph(page, nameA)).toHaveText(nameA);
     await expect(programDescParagraph(page, nameA)).toHaveText(descA);
@@ -128,14 +123,12 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-002: Empty state is shown when no programs exist', async ({
     page,
   }) => {
-    await page.goto(`${BASE_URL}/programs`);
-    const tableVisible = await page
-      .getByRole('table')
-      .isVisible()
-      .catch(() => false);
+    const programs = new ProgramsPage(page);
+    await programs.goto();
+    const tableVisible = await programs.table.isVisible().catch(() => false);
 
     if (tableVisible) {
-      const rowCount = await page.getByRole('row').count();
+      const rowCount = await programs.rows().count();
       if (rowCount > 1) {
         test.skip(
           true,
@@ -145,56 +138,49 @@ test.describe('DS-5: Program List Display', () => {
       }
     }
 
-    const emptyIndicator = page.getByText(/no programs|create your first/i);
-    const tableGone = !(await page
-      .getByRole('table')
-      .isVisible()
-      .catch(() => false));
+    const emptyIndicator = programs.emptyStateMessage;
+    const tableGone = !(await programs.table.isVisible().catch(() => false));
     expect(
       tableGone || (await emptyIndicator.isVisible().catch(() => false)),
     ).toBe(true);
-    await expect(
-      page.getByRole('button', { name: '+ New Program' }),
-    ).toBeVisible();
+    await expect(programs.newProgramButton).toBeVisible();
   });
 
   // TC-003 — A single program is displayed correctly in the program list
   test('TC-003: A single program is displayed with its name and description', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = testProgramName('Test Program');
     const description = testDescription('A test program for QA purposes');
     await createProgram(page, name, description);
 
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     await expect(programRow(page, name)).toHaveCount(1);
     await expect(programNameParagraph(page, name)).toHaveText(name);
     await expect(programDescParagraph(page, name)).toHaveText(description);
-    await expect(
-      page.getByText(/no programs|create your first/i),
-    ).not.toBeVisible();
+    await expect(programs.emptyStateMessage).not.toBeVisible();
   });
 
   // TC-004 — Newly created program appears in the list without requiring a manual reload
   test('TC-004: Newly created program appears in the list without a page reload', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = testProgramName('Data Science 2026');
     const description = testDescription(
       'Applied machine learning and statistics',
     );
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(name);
-    await modal.getByRole('textbox', { name: 'Description' }).fill(description);
-    await modal.getByRole('button', { name: 'Create' }).click();
+    await programs.goto();
+    await programs.openNewProgram();
+    const modal = programs.newProgramModal;
+    await modal.fillProgramName(name);
+    await modal.fillDescription(description);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('dialog', { name: 'New Program' }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
     await expect(programRow(page, name)).toHaveCount(1);
     await expect(programNameParagraph(page, name)).toHaveText(name);
     await expect(programDescParagraph(page, name)).toHaveText(description);
@@ -204,32 +190,30 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-005: Program list appears after a program is created', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = testProgramName('Test Program');
     const description = testDescription('A test program');
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(name);
-    await modal.getByRole('textbox', { name: 'Description' }).fill(description);
-    await modal.getByRole('button', { name: 'Create' }).click();
+    await programs.goto();
+    await programs.openNewProgram();
+    const modal = programs.newProgramModal;
+    await modal.fillProgramName(name);
+    await modal.fillDescription(description);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('dialog', { name: 'New Program' }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
     await expect(programRow(page, name)).toHaveCount(1);
     await expect(programNameParagraph(page, name)).toHaveText(name);
     await expect(programDescParagraph(page, name)).toHaveText(description);
-    await expect(
-      page.getByText(/no programs|create your first/i),
-    ).not.toBeVisible();
-    await expect(page.getByRole('table')).toBeVisible();
+    await expect(programs.emptyStateMessage).not.toBeVisible();
+    await expect(programs.table).toBeVisible();
   });
 
   // TC-006 — Program list is still accessible and intact after a page reload
   test('TC-006: Program list is intact after a page reload', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const nameA = testProgramName('Reload A');
     const nameB = testProgramName('Reload B');
     const descA = testDescription('Description A reload test');
@@ -238,7 +222,7 @@ test.describe('DS-5: Program List Display', () => {
     await createProgram(page, nameA, descA);
     await createProgram(page, nameB, descB);
 
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
     await page.reload();
     await page.waitForURL(`${BASE_URL}/programs`);
 
@@ -260,25 +244,21 @@ test.describe('DS-5: Program List Display', () => {
       'Non-admin credentials not configured (set DIDAXIS_NONADMIN_EMAIL and DIDAXIS_NONADMIN_PASSWORD in .env)',
     );
 
+    const loginPage = new LoginPage(page);
+    const programs = new ProgramsPage(page);
     await page.context().clearCookies();
-    await page.goto(`${BASE_URL}/login`);
-    await page
-      .getByRole('textbox', { name: 'Email' })
-      .fill(process.env.DIDAXIS_NONADMIN_EMAIL!);
-    await page
-      .getByRole('textbox', { name: 'Password' })
-      .fill(process.env.DIDAXIS_NONADMIN_PASSWORD!);
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    await loginPage.goto();
+    await loginPage.login(
+      process.env.DIDAXIS_NONADMIN_EMAIL!,
+      process.env.DIDAXIS_NONADMIN_PASSWORD!,
+    );
     await page.waitForURL(`${BASE_URL}/`);
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     const isRedirected = !page.url().includes('/programs');
-    const isDenied = await page
-      .getByText(/access denied|forbidden|not authorized/i)
-      .isVisible()
-      .catch(() => false);
+    const isDenied = false;
     expect(
-      isRedirected || isDenied || !(await page.getByRole('table').isVisible()),
+      isRedirected || isDenied || !(await programs.table.isVisible()),
     ).toBe(true);
   });
 
@@ -296,22 +276,22 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-010: Empty-state prompt is not shown when programs exist', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = testProgramName('Has Programs');
     await createProgram(page, name);
 
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     await expect(programRow(page, name)).toHaveCount(1);
-    await expect(page.getByRole('table')).toBeVisible();
-    await expect(
-      page.getByText(/no programs|create your first/i),
-    ).not.toBeVisible();
+    await expect(programs.table).toBeVisible();
+    await expect(programs.emptyStateMessage).not.toBeVisible();
   });
 
   // TC-011 — Program with a maximum-length name is displayed without overflow
   test('TC-011: Program with a maximum-length name is displayed without layout breakage', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const suffix = String(Date.now());
     const maxName =
       DATA_PREFIX +
@@ -320,13 +300,13 @@ test.describe('DS-5: Program List Display', () => {
     const description = testDescription('Edge case program');
 
     await createProgram(page, maxName, description);
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     await expect(programRow(page, maxName)).toHaveCount(1);
     await expect(programNameParagraph(page, maxName)).toHaveText(maxName);
     await expect(programDescParagraph(page, maxName)).toHaveText(description);
     await expect(
-      programRow(page, maxName).first().getByRole('cell').first(),
+      programs.nameCell(maxName),
     ).toBeVisible();
   });
 
@@ -334,16 +314,17 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-012: Program with a maximum-length description is displayed without layout breakage', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = testProgramName('Test Program');
     const maxDesc = testDescription('B'.repeat(500 - DATA_PREFIX.length));
 
     await createProgram(page, name, maxDesc);
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     await expect(programRow(page, name)).toHaveCount(1);
     await expect(programDescParagraph(page, name)).toHaveText(maxDesc);
     await expect(
-      programRow(page, name).first().getByRole('cell').first(),
+      programs.nameCell(name),
     ).toBeVisible();
   });
 
@@ -351,13 +332,14 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-013: Program with special characters is displayed without encoding artifacts', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = `${DATA_PREFIX}Informatique & IA - Niveau 2 ${Date.now()}`;
     const description = testDescription(
       "Cours d'IA & ML: niveau avancé (100%)",
     );
 
     await createProgram(page, name, description);
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     await expect(programNameParagraph(page, name)).toHaveText(name);
     await expect(programNameParagraph(page, name)).not.toContainText('&amp;');
@@ -368,6 +350,7 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-014: Program name and description with HTML tags are rendered as plain text', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     let alertFired = false;
     page.on('dialog', (dialog) => {
       alertFired = true;
@@ -377,26 +360,20 @@ test.describe('DS-5: Program List Display', () => {
     const name = `${DATA_PREFIX}<b>Bold Program</b> ${Date.now()}`;
     const description = `<script>alert('xss')</script>`;
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(name);
-    await modal.getByRole('textbox', { name: 'Description' }).fill(description);
-    await modal.getByRole('button', { name: 'Create' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'New Program' }),
-    ).not.toBeVisible();
+    await programs.goto();
+    await programs.openNewProgram();
+    const modal = programs.newProgramModal;
+    await modal.fillProgramName(name);
+    await modal.fillDescription(description);
+    await modal.submit();
+    await expect(modal.dialog).not.toBeVisible();
 
-    await page.goto(`${BASE_URL}/programs`);
-    await expect(programNameCell(page, name).first()).toBeVisible();
+    await programs.goto();
+    await expect(programNameCell(page, name)).toBeVisible();
     await expect(programNameParagraph(page, name)).toHaveText(name);
     await expect(programDescParagraph(page, name)).toHaveText(description);
-    await expect(
-      programRowsByName(page, name).first().locator('b'),
-    ).toHaveCount(0);
-    await expect(
-      programRowsByName(page, name).first().locator('script'),
-    ).toHaveCount(0);
+    await expect(programs.boldTagsInRow(name)).toHaveCount(0);
+    await expect(programs.scriptTagsInRow(name)).toHaveCount(0);
     expect(alertFired).toBe(false);
   });
 
@@ -404,19 +381,18 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-015: Program with whitespace-only description shows graceful empty state in the cell', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = testProgramName('Whitespace Desc');
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(name);
-    await modal.getByRole('textbox', { name: 'Description' }).fill('   ');
-    await modal.getByRole('button', { name: 'Create' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'New Program' }),
-    ).not.toBeVisible();
+    await programs.goto();
+    await programs.openNewProgram();
+    const modal = programs.newProgramModal;
+    await modal.fillProgramName(name);
+    await modal.fillDescription('   ');
+    await modal.submit();
+    await expect(modal.dialog).not.toBeVisible();
 
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
     await expect(programRow(page, name)).toHaveCount(1);
 
     const descParagraph = programDescParagraph(page, name);
@@ -431,10 +407,11 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-016: Program with no description is displayed without error', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = testProgramName('No Desc Program');
 
     await createProgram(page, name);
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     await expect(programRow(page, name)).toHaveCount(1);
     await expect(programNameParagraph(page, name)).toHaveText(name);
@@ -451,6 +428,7 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-017: Program list with multiple programs loads within 5 seconds', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const names: string[] = [];
     for (let i = 0; i < 10; i++) {
       const name = testProgramName(`Perf Program ${i}`);
@@ -459,8 +437,8 @@ test.describe('DS-5: Program List Display', () => {
     }
 
     const start = Date.now();
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('table').waitFor({ state: 'visible' });
+    await programs.goto();
+    await programs.table.waitFor({ state: 'visible' });
     const loadTime = Date.now() - start;
 
     expect(loadTime).toBeLessThan(5000);
@@ -473,11 +451,12 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-018: Program with Unicode and multilingual characters is displayed correctly', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = `${DATA_PREFIX}Programmation C++ — Niveau 3 (高级) ${Date.now()}`;
     const description = testDescription('面向对象编程 & algorithms');
 
     await createProgram(page, name, description);
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
     await expect(programRow(page, name)).toHaveCount(1);
     await expect(programNameParagraph(page, name)).toHaveText(name);
@@ -488,6 +467,7 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-019: Two programs with identical names are both shown as separate rows', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const name = testProgramName('Data Science 2026');
     const descA = testDescription('First duplicate entry');
     const descB = testDescription('Second duplicate entry');
@@ -495,8 +475,8 @@ test.describe('DS-5: Program List Display', () => {
     await createProgram(page, name, descA);
     await createProgram(page, name, descB);
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('table').waitFor({ state: 'visible' });
+    await programs.goto();
+    await programs.table.waitFor({ state: 'visible' });
 
     const duplicateRows = programRowsByName(page, name);
     await expect(duplicateRows).toHaveCount(2);
@@ -508,6 +488,7 @@ test.describe('DS-5: Program List Display', () => {
   test('TC-020: Programs list order is consistent across page reloads', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     const names = [
       testProgramName('Order Alpha'),
       testProgramName('Order Beta'),
@@ -517,13 +498,13 @@ test.describe('DS-5: Program List Display', () => {
       await createProgram(page, name);
     }
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('table').waitFor({ state: 'visible' });
+    await programs.goto();
+    await programs.table.waitFor({ state: 'visible' });
     const orderBefore = await getRelativeOrder(page, names);
 
     await page.reload();
     await page.waitForURL(`${BASE_URL}/programs`);
-    await page.getByRole('table').waitFor({ state: 'visible' });
+    await programs.table.waitFor({ state: 'visible' });
 
     const orderAfter = await getRelativeOrder(page, names);
     expect(orderBefore).toEqual(orderAfter);
@@ -538,8 +519,9 @@ test.describe('DS-5: Program List Display — unauthenticated access', () => {
   test('TC-007: Unauthenticated user is redirected to the login page', async ({
     page,
   }) => {
+    const programs = new ProgramsPage(page);
     await page.goto(`${BASE_URL}/programs`);
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByRole('table')).not.toBeVisible();
+    await expect(programs.table).not.toBeVisible();
   });
 });

@@ -4,13 +4,19 @@ import {
   type CleanupFixtures,
 } from '../fixtures/cleanup.fixture';
 import type { Page } from '@playwright/test';
+import { LoginPage } from '../pages/login.page';
+import { ProgramsPage } from '../pages/programs.page';
 
 const BASE_URL = process.env.DIDAXIS_URL!;
 const DATA_PREFIX = 'AP_';
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const testProgramName = (label: string) =>
   `${DATA_PREFIX}${label} ${Date.now()}`;
 const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
+
+type NewProgramContext = {
+  programs: ProgramsPage;
+  modal: ProgramsPage['newProgramModal'];
+};
 
 type ProgramListItem = {
   id: string;
@@ -58,22 +64,33 @@ async function trackProgramsByName(
   }
 }
 
+async function openNewProgramModal(page: Page): Promise<NewProgramContext> {
+  const programs = new ProgramsPage(page);
+  await programs.goto();
+  await programs.openNewProgram();
+  return { programs, modal: programs.newProgramModal };
+}
+
+async function createProgram(page: Page, name: string, description = '') {
+  const { programs, modal } = await openNewProgramModal(page);
+  await modal.fillProgramName(name);
+  if (description) {
+    await modal.fillDescription(description);
+  }
+  await modal.submit();
+  await expect(modal.dialog).not.toBeVisible();
+  await expect(programs.nameCell(name)).toBeVisible();
+}
+
 test.describe('DS-1: Create Program', () => {
   // TC-001 — Program creation form is accessible to admin
   test('TC-001: New Program modal contains required fields and Create button', async ({
     page,
   }) => {
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await expect(
-      modal.getByRole('textbox', { name: 'Program Name' }),
-    ).toBeVisible();
-    await expect(
-      modal.getByRole('textbox', { name: 'Description' }),
-    ).toBeVisible();
-    await expect(modal.getByRole('button', { name: 'Create' })).toBeVisible();
+    const { modal } = await openNewProgramModal(page);
+    await expect(modal.programNameInput).toBeVisible();
+    await expect(modal.descriptionInput).toBeVisible();
+    await expect(modal.createButton).toBeVisible();
   });
 
   // TC-002 — Admin successfully creates a program with all fields populated
@@ -84,19 +101,7 @@ test.describe('DS-1: Create Program', () => {
     const programName = testProgramName('Web Development');
     const description = testDescription('Full-stack web development program');
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-    await modal.getByRole('textbox', { name: 'Description' }).fill(description);
-    await modal.getByRole('button', { name: 'Create' }).click();
-
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(programName)) }).first(),
-    ).toBeVisible();
+    await createProgram(page, programName, description);
     await trackProgramsByName(page, trackProgram, programName);
   });
 
@@ -107,18 +112,7 @@ test.describe('DS-1: Create Program', () => {
   }) => {
     const programName = testProgramName('Data Science');
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-    await modal.getByRole('button', { name: 'Create' }).click();
-
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(programName)) }).first(),
-    ).toBeVisible();
+    await createProgram(page, programName);
     await trackProgramsByName(page, trackProgram, programName);
   });
 
@@ -128,62 +122,38 @@ test.describe('DS-1: Create Program', () => {
   }) => {
     const programName = testProgramName('Computer Science');
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await expect(modal.getByRole('button', { name: 'Create' })).toBeDisabled();
-
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-
-    await expect(modal.getByRole('button', { name: 'Create' })).toBeEnabled();
+    const { modal } = await openNewProgramModal(page);
+    await expect(modal.createButton).toBeDisabled();
+    await modal.fillProgramName(programName);
+    await expect(modal.createButton).toBeEnabled();
   });
 
   // TC-005 — Create button is disabled when Program Name is empty
   test('TC-005: Create button is disabled when Program Name is empty', async ({
     page,
   }) => {
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await expect(
-      modal.getByRole('textbox', { name: 'Program Name' }),
-    ).toBeEmpty();
-    await expect(modal.getByRole('button', { name: 'Create' })).toBeDisabled();
+    const { modal } = await openNewProgramModal(page);
+    await expect(modal.programNameInput).toBeEmpty();
+    await expect(modal.createButton).toBeDisabled();
   });
 
   // TC-006 — Create button remains disabled when only Description is filled
   test('TC-006: Create button remains disabled when only Description is filled', async ({
     page,
   }) => {
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Description' })
-      .fill(testDescription('Full-stack web development program'));
-
-    await expect(
-      modal.getByRole('textbox', { name: 'Program Name' }),
-    ).toBeEmpty();
-    await expect(modal.getByRole('button', { name: 'Create' })).toBeDisabled();
+    const { modal } = await openNewProgramModal(page);
+    await modal.fillDescription(testDescription('Full-stack web development program'));
+    await expect(modal.programNameInput).toBeEmpty();
+    await expect(modal.createButton).toBeDisabled();
   });
 
   // TC-007 — Program Name containing only whitespace is rejected
   test('TC-007: Program Name containing only whitespace is rejected', async ({
     page,
   }) => {
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill('     ');
-
-    await expect(modal.getByRole('button', { name: 'Create' })).toBeDisabled();
+    const { modal } = await openNewProgramModal(page);
+    await modal.fillProgramName('     ');
+    await expect(modal.createButton).toBeDisabled();
   });
 
   // TC-008 — Non-admin user cannot access the program creation form
@@ -196,21 +166,16 @@ test.describe('DS-1: Create Program', () => {
       'Non-admin credentials not configured (set DIDAXIS_NONADMIN_EMAIL and DIDAXIS_NONADMIN_PASSWORD in .env)',
     );
 
-    await page.goto(`${BASE_URL}/login`);
-    await page
-      .getByRole('textbox', { name: 'Email' })
-      .fill(process.env.DIDAXIS_NONADMIN_EMAIL!);
-    await page
-      .getByRole('textbox', { name: 'Password' })
-      .fill(process.env.DIDAXIS_NONADMIN_PASSWORD!);
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    const loginPage = new LoginPage(page);
+    const programs = new ProgramsPage(page);
+    await loginPage.goto();
+    await loginPage.login(
+      process.env.DIDAXIS_NONADMIN_EMAIL!,
+      process.env.DIDAXIS_NONADMIN_PASSWORD!,
+    );
     await page.waitForURL(`${BASE_URL}/`);
-
-    await page.goto(`${BASE_URL}/programs`);
-
-    await expect(
-      page.getByRole('button', { name: '+ New Program' }),
-    ).not.toBeVisible();
+    await programs.goto();
+    await expect(programs.newProgramButton).not.toBeVisible();
   });
 
   // TC-009 — Cancelling the form does not create a program
@@ -219,24 +184,13 @@ test.describe('DS-1: Create Program', () => {
   }) => {
     const programName = testProgramName('Cancelled Program');
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
+    const { programs, modal } = await openNewProgramModal(page);
+    await modal.fillProgramName(programName);
+    await modal.fillDescription(testDescription('This should not be saved'));
+    await modal.cancel();
 
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-    await modal
-      .getByRole('textbox', { name: 'Description' })
-      .fill(testDescription('This should not be saved'));
-    await modal.getByRole('button', { name: 'Cancel' }).click();
-
-    await expect(
-      page.getByRole('dialog', { name: 'New Program' }),
-    ).not.toBeVisible();
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(programName)) }).first(),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
+    await expect(programs.nameCell(programName)).not.toBeVisible();
   });
 
   // TC-010 — Program Name at maximum allowed length is accepted
@@ -250,19 +204,9 @@ test.describe('DS-1: Create Program', () => {
       'A'.repeat(255 - DATA_PREFIX.length - suffix.length) +
       suffix;
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(maxName);
-    await modal
-      .getByRole('textbox', { name: 'Description' })
-      .fill(testDescription('Test description'));
-    await modal.getByRole('button', { name: 'Create' }).click();
-
-    await expect(
-      page.getByRole('cell', { name: new RegExp(suffix) }).first(),
-    ).toBeVisible();
+    await createProgram(page, maxName, testDescription('Test description'));
+    const programs = new ProgramsPage(page);
+    await expect(programs.nameCell(suffix)).toBeVisible();
     await trackProgramsByName(page, trackProgram, maxName);
   });
 
@@ -273,15 +217,12 @@ test.describe('DS-1: Create Program', () => {
     async ({ page }) => {
       const overLimitName = 'A'.repeat(256);
 
-      await page.goto(`${BASE_URL}/programs`);
-      await page.getByRole('button', { name: '+ New Program' }).click();
-
-      const modal = page.getByRole('dialog', { name: 'New Program' });
-      const nameField = modal.getByRole('textbox', { name: 'Program Name' });
+      const { modal } = await openNewProgramModal(page);
+      const nameField = modal.programNameInput;
       await nameField.fill(overLimitName);
 
       const actualValue = await nameField.inputValue();
-      const createBtn = modal.getByRole('button', { name: 'Create' });
+      const createBtn = modal.createButton;
       const isDisabled = await createBtn.isDisabled();
 
       // Expected per spec: input truncated to ≤255 chars OR Create button disabled
@@ -296,18 +237,7 @@ test.describe('DS-1: Create Program', () => {
   }) => {
     const programName = `${DATA_PREFIX}Web Dev & Design: ${Date.now()} (Part 1)`;
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-    await modal.getByRole('button', { name: 'Create' }).click();
-
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(programName)) }).first(),
-    ).toBeVisible();
+    await createProgram(page, programName);
     await trackProgramsByName(page, trackProgram, programName);
   });
 
@@ -322,15 +252,10 @@ test.describe('DS-1: Create Program', () => {
       dialog.dismiss();
     });
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
+    const { modal } = await openNewProgramModal(page);
+    await modal.fillProgramName(`${DATA_PREFIX}<script>alert('xss')</script>`);
 
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(`${DATA_PREFIX}<script>alert('xss')</script>`);
-
-    const createBtn = modal.getByRole('button', { name: 'Create' });
+    const createBtn = modal.createButton;
     if (await createBtn.isEnabled()) {
       await createBtn.click();
       await trackProgramsByName(
@@ -350,40 +275,21 @@ test.describe('DS-1: Create Program', () => {
   }) => {
     const programName = testProgramName('Duplicate Test');
 
-    await page.goto(`${BASE_URL}/programs`);
-
     // Create first program
-    await page.getByRole('button', { name: '+ New Program' }).click();
-    let modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-    await modal.getByRole('button', { name: 'Create' }).click();
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(programName)) }).first(),
-    ).toBeVisible();
+    await createProgram(page, programName);
     await trackProgramsByName(page, trackProgram, programName);
 
     // Attempt to create a duplicate
-    await page.getByRole('button', { name: '+ New Program' }).click();
-    modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-    await modal.getByRole('button', { name: 'Create' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'New Program' }),
-    ).not.toBeVisible({ timeout: 10000 });
+    const { modal } = await openNewProgramModal(page);
+    await modal.fillProgramName(programName);
+    await modal.submit();
+    await expect(modal.dialog).not.toBeVisible({ timeout: 10000 });
     await trackProgramsByName(page, trackProgram, programName);
 
     // Either an error is shown, or the duplicate is created — both are valid outcomes
-    const errorVisible = await page
-      .getByRole('alert')
-      .isVisible()
-      .catch(() => false);
-    const duplicateRows = page.getByRole('cell', {
-      name: new RegExp(esc(programName)),
-    });
+    const programs = new ProgramsPage(page);
+    const errorVisible = await programs.alert.isVisible().catch(() => false);
+    const duplicateRows = programs.nameCells(programName);
     const rowCount = await duplicateRows.count();
     expect(errorVisible || rowCount >= 1).toBe(true);
   });
@@ -398,21 +304,7 @@ test.describe('DS-1: Create Program', () => {
       'D'.repeat(1000 - DATA_PREFIX.length),
     );
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-    await modal
-      .getByRole('textbox', { name: 'Description' })
-      .fill(maxDescription);
-    await modal.getByRole('button', { name: 'Create' }).click();
-
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(programName)) }).first(),
-    ).toBeVisible();
+    await createProgram(page, programName, maxDescription);
     await trackProgramsByName(page, trackProgram, programName);
   });
 
@@ -423,21 +315,7 @@ test.describe('DS-1: Create Program', () => {
   }) => {
     const programName = testProgramName('Machine Learning');
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(programName);
-    await modal.getByRole('button', { name: 'Create' }).click();
-
-    await expect(
-      page.getByRole('dialog', { name: 'New Program' }),
-    ).not.toBeVisible();
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(programName)) }).first(),
-    ).toBeVisible();
+    await createProgram(page, programName);
     await trackProgramsByName(page, trackProgram, programName);
   });
 
@@ -449,16 +327,12 @@ test.describe('DS-1: Create Program', () => {
     const baseName = testProgramName('Web Development');
     const paddedName = `  ${baseName}  `;
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
+    const { modal } = await openNewProgramModal(page);
+    await modal.fillProgramName(paddedName);
+    await modal.submit();
 
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(paddedName);
-    await modal.getByRole('button', { name: 'Create' }).click();
-
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(baseName)) }).first(),
-    ).toBeVisible();
+    const programs = new ProgramsPage(page);
+    await expect(programs.nameCell(baseName)).toBeVisible();
     await trackProgramsByName(page, trackProgram, baseName);
   });
 });

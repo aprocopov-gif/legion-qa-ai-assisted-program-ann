@@ -4,10 +4,11 @@ import {
   type CleanupFixtures,
 } from '../fixtures/cleanup.fixture';
 import type { Page } from '@playwright/test';
+import { LoginPage } from '../pages/login.page';
+import { ProgramsPage } from '../pages/programs.page';
 
 const BASE_URL = process.env.DIDAXIS_URL!;
 const DATA_PREFIX = 'AP_';
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const testProgramName = (label: string) =>
   `${DATA_PREFIX}${label} ${Date.now()}`;
 const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
@@ -41,34 +42,42 @@ function wireProgramTracking(
 }
 
 async function createProgram(page: Page, name: string, description = '') {
-  await page.goto(`${BASE_URL}/programs`);
-  await page.getByRole('button', { name: '+ New Program' }).click();
+  const programs = new ProgramsPage(page);
+  await programs.goto();
+  await programs.openNewProgram();
 
-  const modal = page.getByRole('dialog', { name: 'New Program' });
-  await modal.getByRole('textbox', { name: 'Program Name' }).fill(name);
+  const modal = programs.newProgramModal;
+  await modal.fillProgramName(name);
   if (description) {
-    await modal.getByRole('textbox', { name: 'Description' }).fill(description);
+    await modal.fillDescription(description);
   }
-  await modal.getByRole('button', { name: 'Create' }).click();
+  await modal.submit();
 
-  await expect(
-    page.getByRole('dialog', { name: 'New Program' }),
-  ).not.toBeVisible();
-  await expect(
-    page.getByRole('cell', { name: new RegExp(esc(name)) }).first(),
-  ).toBeVisible();
+  await expect(modal.dialog).not.toBeVisible();
+  await expect(programs.nameCell(name)).toBeVisible();
 }
 
 async function openEditModal(page: Page, programName: string) {
-  await page
-    .getByRole('row', { name: new RegExp(esc(programName)) })
-    .first()
-    .getByRole('button', { name: new RegExp(`Edit ${esc(programName)}`) })
-    .click();
-
-  const modal = page.getByRole('dialog', { name: 'Edit Program' });
-  await expect(modal).toBeVisible();
+  const programs = new ProgramsPage(page);
+  await programs.openEditFor(programName);
+  const modal = programs.editProgramModal;
+  await expect(modal.dialog).toBeVisible();
   return modal;
+}
+
+async function expectProgramName(page: Page, name: string) {
+  const programs = new ProgramsPage(page);
+  await expect(programs.nameParagraph(name)).toHaveText(name);
+}
+
+async function expectProgramNameAndDescription(
+  page: Page,
+  name: string,
+  description: string,
+) {
+  const programs = new ProgramsPage(page);
+  await expect(programs.nameParagraph(name)).toHaveText(name);
+  await expect(programs.descriptionParagraph(name)).toHaveText(description);
 }
 
 test.describe('DS-2: Edit Program', () => {
@@ -86,12 +95,8 @@ test.describe('DS-2: Edit Program', () => {
 
     const modal = await openEditModal(page, name);
 
-    await expect(
-      modal.getByRole('textbox', { name: 'Program Name' }),
-    ).toHaveValue(name);
-    await expect(
-      modal.getByRole('textbox', { name: 'Description' }),
-    ).toHaveValue(description);
+    await expect(modal.programNameInput).toHaveValue(name);
+    await expect(modal.descriptionInput).toHaveValue(description);
   });
 
   // TC-002 — Admin successfully updates the program name
@@ -107,21 +112,12 @@ test.describe('DS-2: Edit Program', () => {
     );
 
     const modal = await openEditModal(page, originalName);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(updatedName);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillProgramName(updatedName);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('dialog', { name: 'Edit Program' }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
 
-    const row = page
-      .getByRole('row', { name: new RegExp(esc(updatedName)) })
-      .first();
-    await expect(row.getByRole('cell').first().locator('p').first()).toHaveText(
-      updatedName,
-    );
+    await expectProgramName(page, updatedName);
   });
 
   // TC-003 — Program list reflects the updated name immediately without a page reload
@@ -133,20 +129,13 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, originalName);
 
     const modal = await openEditModal(page, originalName);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(updatedName);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillProgramName(updatedName);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('dialog', { name: 'Edit Program' }),
-    ).not.toBeVisible();
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(updatedName)) }).first(),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('row', { name: new RegExp(esc(originalName)) }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
+    const programs = new ProgramsPage(page);
+    await expect(programs.nameCell(updatedName)).toBeVisible();
+    await expect(programs.row(originalName)).not.toBeVisible();
   });
 
   // TC-004 — Editing only the Description preserves the Program Name
@@ -161,28 +150,16 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, name, originalDesc);
 
     let modal = await openEditModal(page, name);
-    await modal.getByRole('textbox', { name: 'Description' }).fill(updatedDesc);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillDescription(updatedDesc);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('dialog', { name: 'Edit Program' }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
 
-    const row = page.getByRole('row', { name: new RegExp(esc(name)) }).first();
-    await expect(row.getByRole('cell').first().locator('p').first()).toHaveText(
-      name,
-    );
-    await expect(row.getByRole('cell').first().locator('p').nth(1)).toHaveText(
-      updatedDesc,
-    );
+    await expectProgramNameAndDescription(page, name, updatedDesc);
 
     modal = await openEditModal(page, name);
-    await expect(
-      modal.getByRole('textbox', { name: 'Program Name' }),
-    ).toHaveValue(name);
-    await expect(
-      modal.getByRole('textbox', { name: 'Description' }),
-    ).toHaveValue(updatedDesc);
+    await expect(modal.programNameInput).toHaveValue(name);
+    await expect(modal.descriptionInput).toHaveValue(updatedDesc);
   });
 
   // TC-005 — Editing only the Name preserves the Description
@@ -193,29 +170,15 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, originalName, description);
 
     let modal = await openEditModal(page, originalName);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(updatedName);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillProgramName(updatedName);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('dialog', { name: 'Edit Program' }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
 
-    const row = page
-      .getByRole('row', { name: new RegExp(esc(updatedName)) })
-      .first();
-    await expect(row.getByRole('cell').first().locator('p').first()).toHaveText(
-      updatedName,
-    );
-    await expect(row.getByRole('cell').first().locator('p').nth(1)).toHaveText(
-      description,
-    );
+    await expectProgramNameAndDescription(page, updatedName, description);
 
     modal = await openEditModal(page, updatedName);
-    await expect(
-      modal.getByRole('textbox', { name: 'Description' }),
-    ).toHaveValue(description);
+    await expect(modal.descriptionInput).toHaveValue(description);
   });
 
   // TC-006 — Admin successfully updates both Name and Description simultaneously
@@ -232,33 +195,17 @@ test.describe('DS-2: Edit Program', () => {
     );
 
     let modal = await openEditModal(page, originalName);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(updatedName);
-    await modal.getByRole('textbox', { name: 'Description' }).fill(updatedDesc);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillProgramName(updatedName);
+    await modal.fillDescription(updatedDesc);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('dialog', { name: 'Edit Program' }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
 
-    const row = page
-      .getByRole('row', { name: new RegExp(esc(updatedName)) })
-      .first();
-    await expect(row.getByRole('cell').first().locator('p').first()).toHaveText(
-      updatedName,
-    );
-    await expect(row.getByRole('cell').first().locator('p').nth(1)).toHaveText(
-      updatedDesc,
-    );
+    await expectProgramNameAndDescription(page, updatedName, updatedDesc);
 
     modal = await openEditModal(page, updatedName);
-    await expect(
-      modal.getByRole('textbox', { name: 'Program Name' }),
-    ).toHaveValue(updatedName);
-    await expect(
-      modal.getByRole('textbox', { name: 'Description' }),
-    ).toHaveValue(updatedDesc);
+    await expect(modal.programNameInput).toHaveValue(updatedName);
+    await expect(modal.descriptionInput).toHaveValue(updatedDesc);
   });
 
   // TC-007 — Save button is disabled when Program Name is cleared
@@ -269,9 +216,9 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, name);
 
     const modal = await openEditModal(page, name);
-    await modal.getByRole('textbox', { name: 'Program Name' }).clear();
+    await modal.programNameInput.clear();
 
-    await expect(modal.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await expect(modal.saveButton).toBeDisabled();
   });
 
   // TC-008 — Cancelling the edit form does not apply any changes
@@ -283,25 +230,13 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, name, description);
 
     const modal = await openEditModal(page, name);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill('Should Not Be Saved');
-    await modal
-      .getByRole('textbox', { name: 'Description' })
-      .fill('This description should not persist');
-    await modal.getByRole('button', { name: 'Cancel' }).click();
+    await modal.fillProgramName('Should Not Be Saved');
+    await modal.fillDescription('This description should not persist');
+    await modal.cancel();
 
-    await expect(
-      page.getByRole('dialog', { name: 'Edit Program' }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
 
-    const row = page.getByRole('row', { name: new RegExp(esc(name)) }).first();
-    await expect(row.getByRole('cell').first().locator('p').first()).toHaveText(
-      name,
-    );
-    await expect(row.getByRole('cell').first().locator('p').nth(1)).toHaveText(
-      description,
-    );
+    await expectProgramNameAndDescription(page, name, description);
   });
 
   // TC-009 — Program Name containing only whitespace is rejected
@@ -312,9 +247,9 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, name);
 
     const modal = await openEditModal(page, name);
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill('     ');
+    await modal.fillProgramName('     ');
 
-    await expect(modal.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await expect(modal.saveButton).toBeDisabled();
   });
 
   // TC-010 — Non-admin user cannot access the edit icon
@@ -327,21 +262,17 @@ test.describe('DS-2: Edit Program', () => {
       'Non-admin credentials not configured (set DIDAXIS_NONADMIN_EMAIL and DIDAXIS_NONADMIN_PASSWORD in .env)',
     );
 
-    await page.goto(`${BASE_URL}/login`);
-    await page
-      .getByRole('textbox', { name: 'Email' })
-      .fill(process.env.DIDAXIS_NONADMIN_EMAIL!);
-    await page
-      .getByRole('textbox', { name: 'Password' })
-      .fill(process.env.DIDAXIS_NONADMIN_PASSWORD!);
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    const loginPage = new LoginPage(page);
+    const programs = new ProgramsPage(page);
+    await loginPage.goto();
+    await loginPage.login(
+      process.env.DIDAXIS_NONADMIN_EMAIL!,
+      process.env.DIDAXIS_NONADMIN_PASSWORD!,
+    );
     await page.waitForURL(`${BASE_URL}/`);
+    await programs.goto();
 
-    await page.goto(`${BASE_URL}/programs`);
-
-    await expect(
-      page.getByRole('button', { name: /^Edit / }).first(),
-    ).not.toBeVisible();
+    await expect(programs.editButtons().first()).not.toBeVisible();
   });
 
   // TC-011 — Navigating away mid-edit without saving discards changes
@@ -352,17 +283,12 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, name);
 
     const modal = await openEditModal(page, name);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill('Should Not Be Saved');
+    await modal.fillProgramName('Should Not Be Saved');
 
     await page.goto(`${BASE_URL}/`);
     await page.goto(`${BASE_URL}/programs`);
 
-    const row = page.getByRole('row', { name: new RegExp(esc(name)) }).first();
-    await expect(row.getByRole('cell').first().locator('p').first()).toHaveText(
-      name,
-    );
+    await expectProgramName(page, name);
   });
 
   // TC-012 — Program Name at maximum allowed length is accepted
@@ -378,12 +304,11 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, originalName);
 
     const modal = await openEditModal(page, originalName);
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(maxName);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillProgramName(maxName);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(suffix)) }).first(),
-    ).toBeVisible();
+    const programs = new ProgramsPage(page);
+    await expect(programs.nameCellsByPattern(new RegExp(suffix)).first()).toBeVisible();
   });
 
   // TC-013 — Program Name exceeding maximum allowed length is rejected
@@ -395,13 +320,11 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, originalName);
 
     const modal = await openEditModal(page, originalName);
-    const nameField = modal.getByRole('textbox', { name: 'Program Name' });
+    const nameField = modal.programNameInput;
     await nameField.fill('A'.repeat(256));
 
     const actualValue = await nameField.inputValue();
-    const isDisabled = await modal
-      .getByRole('button', { name: 'Save' })
-      .isDisabled();
+    const isDisabled = await modal.saveButton.isDisabled();
 
     // Expected per spec: input truncated to ≤255 chars OR Save button disabled
     expect(actualValue.length <= 255 || isDisabled).toBe(true);
@@ -416,14 +339,11 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, originalName);
 
     const modal = await openEditModal(page, originalName);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(specialName);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillProgramName(specialName);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(specialName)) }).first(),
-    ).toBeVisible();
+    const programs = new ProgramsPage(page);
+    await expect(programs.nameCell(specialName)).toBeVisible();
   });
 
   // TC-015 — Program Name with HTML/script tags does not execute
@@ -440,11 +360,9 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, originalName);
 
     const modal = await openEditModal(page, originalName);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(`${DATA_PREFIX}<script>alert('xss')</script>`);
+    await modal.fillProgramName(`${DATA_PREFIX}<script>alert('xss')</script>`);
 
-    const saveBtn = modal.getByRole('button', { name: 'Save' });
+    const saveBtn = modal.saveButton;
     if (await saveBtn.isEnabled()) {
       await saveBtn.click();
     }
@@ -462,18 +380,14 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, nameB);
 
     const modal = await openEditModal(page, nameA);
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(nameB);
-    await modal.getByRole('button', { name: 'Save' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'Edit Program' }),
-    ).not.toBeVisible({ timeout: 10000 });
+    await modal.fillProgramName(nameB);
+    await modal.submit();
+    await expect(modal.dialog).not.toBeVisible({ timeout: 10000 });
 
     // Either an error is shown, or the duplicate is saved — both are valid outcomes
-    const errorVisible = await page
-      .getByRole('alert')
-      .isVisible()
-      .catch(() => false);
-    const cells = page.getByRole('cell', { name: new RegExp(esc(nameB)) });
+    const programs = new ProgramsPage(page);
+    const errorVisible = await programs.alert.isVisible().catch(() => false);
+    const cells = programs.nameCells(nameB);
     const rowCount = await cells.count();
     expect(errorVisible || rowCount >= 1).toBe(true);
   });
@@ -487,14 +401,11 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, originalName);
 
     const modal = await openEditModal(page, originalName);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(`  ${trimmedName}  `);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillProgramName(`  ${trimmedName}  `);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(trimmedName)) }).first(),
-    ).toBeVisible();
+    const programs = new ProgramsPage(page);
+    await expect(programs.nameCell(trimmedName)).toBeVisible();
   });
 
   // TC-018 — Description field at maximum allowed length is accepted
@@ -508,14 +419,11 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, name);
 
     const modal = await openEditModal(page, name);
-    await modal
-      .getByRole('textbox', { name: 'Description' })
-      .fill(maxDescription);
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.fillDescription(maxDescription);
+    await modal.submit();
 
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(name)) }).first(),
-    ).toBeVisible();
+    const programs = new ProgramsPage(page);
+    await expect(programs.nameCell(name)).toBeVisible();
   });
 
   // TC-019 — Rapid double-click on Save does not submit the form twice
@@ -535,27 +443,18 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, originalName);
 
     const modal = await openEditModal(page, originalName);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(updatedName);
+    await modal.fillProgramName(updatedName);
 
-    const saveBtn = modal.getByRole('button', { name: 'Save' });
+    const saveBtn = modal.saveButton;
     // Human-paced double click: two separate clicks ~200ms apart (matches manual behavior)
     await saveBtn.click();
     await page.waitForTimeout(200);
     await saveBtn.click({ force: true, timeout: 1000 }).catch(() => undefined);
 
-    await expect(
-      page.getByRole('dialog', { name: 'Edit Program' }),
-    ).not.toBeVisible();
+    await expect(modal.dialog).not.toBeVisible();
     await page.waitForTimeout(2000);
 
-    const row = page
-      .getByRole('row', { name: new RegExp(esc(updatedName)) })
-      .first();
-    await expect(row.getByRole('cell').first().locator('p').first()).toHaveText(
-      updatedName,
-    );
+    await expectProgramName(page, updatedName);
     expect(
       patchRequests.length,
       `Save double-click sent ${patchRequests.length} PATCH request(s); expected ≤1`,
@@ -570,9 +469,7 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, name);
 
     const modal = await openEditModal(page, name);
-    await modal
-      .getByRole('textbox', { name: 'Program Name' })
-      .fill(`${name} - Updated`);
+    await modal.fillProgramName(`${name} - Updated`);
 
     await page.route('**/api/**', (route) => {
       if (
@@ -585,19 +482,15 @@ test.describe('DS-2: Edit Program', () => {
       }
     });
 
-    await modal.getByRole('button', { name: 'Save' }).click();
+    await modal.submit();
 
-    const modalStillOpen = await page
-      .getByRole('dialog', { name: 'Edit Program' })
+    const programs = new ProgramsPage(page);
+    const modalStillOpen = await programs
+      .dialogByName('Edit Program')
       .isVisible()
       .catch(() => false);
-    const errorShown = await page
-      .getByRole('alert')
-      .isVisible()
-      .catch(() => false);
+    const errorShown = await programs.alert.isVisible().catch(() => false);
     expect(modalStillOpen || errorShown).toBe(true);
-    await expect(
-      page.getByRole('cell', { name: new RegExp(esc(name)) }).first(),
-    ).toBeVisible();
+    await expect(programs.nameCell(name)).toBeVisible();
   });
 });

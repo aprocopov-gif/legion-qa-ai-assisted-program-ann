@@ -4,10 +4,11 @@ import {
   type CleanupFixtures,
 } from '../fixtures/cleanup.fixture';
 import type { Page, Dialog } from '@playwright/test';
+import { LoginPage } from '../pages/login.page';
+import { ProgramsPage } from '../pages/programs.page';
 
 const BASE_URL = process.env.DIDAXIS_URL!;
 const DATA_PREFIX = 'AP_';
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const testProgramName = (label: string) =>
   `${DATA_PREFIX}${label} ${Date.now()}`;
 
@@ -39,42 +40,38 @@ function wireProgramTracking(
   });
 }
 
-function rowDeleteButton(page: Page, name: string) {
-  return page
-    .getByRole('row', { name: new RegExp(esc(name)) })
-    .first()
-    .getByRole('button', { name: new RegExp(`Delete ${esc(name)}`) });
-}
-
 function programNameCell(page: Page, name: string) {
-  return page.getByRole('cell', { name, exact: true });
+  const programs = new ProgramsPage(page);
+  return programs.nameCell(name);
 }
 
 function programRow(page: Page, name: string) {
-  return page.getByRole('row').filter({ has: programNameCell(page, name) });
+  const programs = new ProgramsPage(page);
+  return programs.row(name);
 }
 
 async function createProgram(page: Page, name: string, description = '') {
-  await page.goto(`${BASE_URL}/programs`);
-  await page.getByRole('button', { name: '+ New Program' }).click();
-  const modal = page.getByRole('dialog', { name: 'New Program' });
-  await modal.getByRole('textbox', { name: 'Program Name' }).fill(name);
+  const programs = new ProgramsPage(page);
+  await programs.goto();
+  await programs.openNewProgram();
+  const modal = programs.newProgramModal;
+  await modal.fillProgramName(name);
   if (description) {
-    await modal.getByRole('textbox', { name: 'Description' }).fill(description);
+    await modal.fillDescription(description);
   }
-  await modal.getByRole('button', { name: 'Create' }).click();
-  await expect(
-    page.getByRole('dialog', { name: 'New Program' }),
-  ).not.toBeVisible();
+  await modal.submit();
+  await expect(modal.dialog).not.toBeVisible();
   await expect(programNameCell(page, name)).toBeVisible();
 }
 
 async function clickDeleteIcon(page: Page, name: string) {
-  await rowDeleteButton(page, name).click();
+  const programs = new ProgramsPage(page);
+  await programs.deleteButton(name).click();
 }
 
 async function deleteProgram(page: Page, name: string) {
-  await page.goto(`${BASE_URL}/programs`);
+  const programs = new ProgramsPage(page);
+  await programs.goto();
   page.once('dialog', (dialog: Dialog) => dialog.accept());
   await clickDeleteIcon(page, name);
 }
@@ -132,17 +129,16 @@ test.describe('DS-4: Delete Program', () => {
     page,
   }) => {
     const name = testProgramName('Reusable Name');
+    const programs = new ProgramsPage(page);
     await createProgram(page, name);
     await deleteProgram(page, name);
 
-    await page.goto(`${BASE_URL}/programs`);
-    await page.getByRole('button', { name: '+ New Program' }).click();
-    const modal = page.getByRole('dialog', { name: 'New Program' });
-    await modal.getByRole('textbox', { name: 'Program Name' }).fill(name);
-    await modal.getByRole('button', { name: 'Create' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'New Program' }),
-    ).not.toBeVisible();
+    await programs.goto();
+    await programs.openNewProgram();
+    const modal = programs.newProgramModal;
+    await modal.fillProgramName(name);
+    await modal.submit();
+    await expect(modal.dialog).not.toBeVisible();
 
     await expect(programRow(page, name).first()).toBeVisible();
   });
@@ -190,18 +186,17 @@ test.describe('DS-4: Delete Program', () => {
       'Non-admin credentials not configured (set DIDAXIS_NONADMIN_EMAIL and DIDAXIS_NONADMIN_PASSWORD in .env)',
     );
 
-    await page.goto(`${BASE_URL}/login`);
-    await page
-      .getByRole('textbox', { name: 'Email' })
-      .fill(process.env.DIDAXIS_NONADMIN_EMAIL!);
-    await page
-      .getByRole('textbox', { name: 'Password' })
-      .fill(process.env.DIDAXIS_NONADMIN_PASSWORD!);
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    const loginPage = new LoginPage(page);
+    const programs = new ProgramsPage(page);
+    await loginPage.goto();
+    await loginPage.login(
+      process.env.DIDAXIS_NONADMIN_EMAIL!,
+      process.env.DIDAXIS_NONADMIN_PASSWORD!,
+    );
     await page.waitForURL(`${BASE_URL}/`);
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
 
-    await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(0);
+    await expect(programs.deleteButtons()).toHaveCount(0);
   });
 
   // TC-008 — Dismissing the confirmation dialog (equivalent of X button) leaves the program intact
@@ -257,9 +252,8 @@ test.describe('DS-4: Delete Program', () => {
     const name = testProgramName('API Auth Test');
     await createProgram(page, name);
 
-    const programRowLocator = page
-      .getByRole('row', { name: new RegExp(esc(name)) })
-      .first();
+    const programs = new ProgramsPage(page);
+    const programRowLocator = programs.row(name).first();
     const rowText = await programRowLocator.textContent();
     const idMatch = rowText?.match(/\d{3,}/);
 
@@ -271,7 +265,7 @@ test.describe('DS-4: Delete Program', () => {
     );
 
     expect([401, 403, 404]).toContain(response.status());
-    await page.goto(`${BASE_URL}/programs`);
+    await programs.goto();
     await expect(programRow(page, name).first()).toBeVisible();
   });
 
@@ -306,18 +300,13 @@ test.describe('DS-4: Delete Program', () => {
 
     await expect(programRow(page, name)).toHaveCount(0);
 
-    const remainingDeleteButtons = await page
-      .getByRole('button', { name: /^Delete / })
-      .count();
+    const programs = new ProgramsPage(page);
+    const remainingDeleteButtons = await programs.deleteButtons().count();
     if (remainingDeleteButtons === 0) {
-      const emptyIndicator = page.getByText(/no programs|create your first/i);
-      const tableVisible = await page
-        .getByRole('table')
-        .isVisible()
-        .catch(() => false);
+      const emptyIndicator = programs.emptyStateMessage;
+      const tableVisible = await programs.table.isVisible().catch(() => false);
       const tableGone = !tableVisible;
-      const onlyHeaderRow =
-        tableVisible && (await page.getByRole('row').count()) <= 1;
+      const onlyHeaderRow = tableVisible && (await programs.rows().count()) <= 1;
       expect(
         tableGone ||
           onlyHeaderRow ||

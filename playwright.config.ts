@@ -30,7 +30,7 @@ export default defineConfig({
   reporter: 'html',
   use: {
     baseURL: process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio',
-    trace: 'on-first-retry',
+    trace: 'on',
   },
   projects: [
     {

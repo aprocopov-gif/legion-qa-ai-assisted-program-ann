@@ -21,15 +21,22 @@ if (
 
 export default defineConfig({
   testDir: './tests',
+  testMatch: '**/*.spec.ts',
   globalSetup: './support/global-setup.ts',
   globalTeardown: './support/global-teardown.ts',
+  timeout: 30000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [
+    ['./support/program-cleanup-reporter.ts'],
+    ['html', { open: 'never' }],
+  ],
   use: {
+    headless: true,
     baseURL: process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio',
+    screenshot: 'only-on-failure',
     trace: 'on',
   },
   projects: [
@@ -39,11 +46,25 @@ export default defineConfig({
     },
     {
       name: 'chromium',
+      testMatch: '**/*.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
         storageState: AUTH_FILE,
       },
       dependencies: ['setup'],
     },
+    {
+      name: 'didaxis',
+      testMatch: '**/ds*.spec.ts',
+      use: {
+        storageState: AUTH_FILE,
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'todomvc',
+      testMatch: '**/*.spec.ts',
+      testIgnore: [/auth\.setup\.ts/, '**/ds*.spec.ts'],
+    }
   ],
 });

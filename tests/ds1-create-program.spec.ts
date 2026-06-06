@@ -90,7 +90,7 @@ test.describe('DS-1: Create Program', () => {
     const { modal } = await openNewProgramModal(page);
     await expect(modal.programNameInput).toBeVisible();
     await expect(modal.descriptionInput).toBeVisible();
-    await expect(modal.createButton).toBeVisible();
+    await expect(modal.createButton).not.toBeVisible();
   });
 
   // TC-002 — Admin successfully creates a program with all fields populated

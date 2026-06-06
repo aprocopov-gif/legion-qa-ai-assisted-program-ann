@@ -8,6 +8,7 @@ node_modules/
 # Playwright outputs
 playwright-report/
 test-results/
+artifacts/
 blob-report/
 playwright/.cache/
 playwright/.auth/

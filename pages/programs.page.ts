@@ -43,7 +43,7 @@ export class ProgramsPage extends BasePage {
   }
 
   row(name: string) {
-    return this.page
+    return this.table
       .getByRole('row')
       .filter({ has: this.page.getByText(name, { exact: true }) });
   }
@@ -77,11 +77,15 @@ export class ProgramsPage extends BasePage {
   }
 
   editButton(name: string) {
-    return this.page.getByRole('button', { name: `Edit ${name}` });
+    return this.row(name)
+      .first()
+      .getByRole('button', { name: `Edit ${name}` });
   }
 
   deleteButton(name: string) {
-    return this.page.getByRole('button', { name: `Delete ${name}` });
+    return this.row(name)
+      .first()
+      .getByRole('button', { name: `Delete ${name}` });
   }
 
   deleteButtons() {

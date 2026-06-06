@@ -9,8 +9,9 @@ import { ProgramsPage } from '../pages/programs.page';
 
 const BASE_URL = process.env.DIDAXIS_URL!;
 const DATA_PREFIX = 'AP_';
+let programNameCounter = 0;
 const testProgramName = (label: string) =>
-  `${DATA_PREFIX}${label} ${Date.now()}`;
+  `${DATA_PREFIX}${label} ${Date.now()}-${++programNameCounter}`;
 const testDescription = (text: string) => `${DATA_PREFIX}${text}`;
 
 function wireProgramTracking(
@@ -380,17 +381,18 @@ test.describe('DS-2: Edit Program', () => {
     await createProgram(page, nameA);
     await createProgram(page, nameB);
 
-    const modal = await openEditModal(page, nameA);
-    await modal.fillProgramName(nameB);
+    const modal = await openEditModal(page, nameB);
+    await modal.fillProgramName(nameA);
     await modal.submit();
     await expect(modal.dialog).not.toBeVisible({ timeout: 10000 });
 
-    // Either an error is shown, or the duplicate is saved — both are valid outcomes
+    // Either an error is shown, or the duplicate rename is saved — both are valid outcomes
     const programs = new ProgramsPage(page);
     const errorVisible = await programs.alert.isVisible().catch(() => false);
-    const cells = programs.nameCells(nameB);
-    const rowCount = await cells.count();
-    expect(errorVisible || rowCount >= 1).toBe(true);
+    const duplicateNameCount = await programs.nameCells(nameA).count();
+    const renameRejected = errorVisible;
+    const duplicateAllowed = duplicateNameCount >= 2;
+    expect(renameRejected || duplicateAllowed).toBe(true);
   });
 
   // TC-017 — Program Name with leading/trailing whitespace is trimmed on save

@@ -41,22 +41,21 @@ async function listApPrograms(page: Page): Promise<ProgramRow[]> {
     .waitFor({ state: 'visible', timeout: 15_000 })
     .catch(() => {});
 
-  const rows = page.locator('tbody tr');
+  const rows = page.getByRole('row').filter({ has: page.getByText(/^AP_/) });
   const count = await rows.count();
   const programs: ProgramRow[] = [];
 
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
-    const nameP = row.getByRole('cell').first().locator('p').first();
-    if ((await nameP.count()) === 0) continue;
-    const name = ((await nameP.textContent()) ?? '').trim();
+    const cell = row.getByRole('cell').first();
+    const lines = ((await cell.innerText()) ?? '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const name = lines[0] ?? '';
     if (!name.startsWith('AP_')) continue;
 
-    const descP = row.getByRole('cell').first().locator('p').nth(1);
-    const description =
-      (await descP.count()) > 0
-        ? ((await descP.textContent()) ?? '').trim()
-        : '';
+    const description = lines.slice(1).join('\n');
     programs.push({ name, description });
   }
 

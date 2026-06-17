@@ -5,12 +5,9 @@ import {
   deleteProgram,
   getDidaxisConfig,
 } from '../.agents/skills/didaxis-program-deleter/support/delete-program';
+import { TRACKER_PATH } from './program-tracker';
 
-const PROGRAM_IDS_FILE = path.join(
-  'playwright',
-  '.tmp',
-  'created-program-ids.txt',
-);
+const PROGRAM_IDS_FILE = TRACKER_PATH;
 
 type CleanupSummary = {
   tracked: number;

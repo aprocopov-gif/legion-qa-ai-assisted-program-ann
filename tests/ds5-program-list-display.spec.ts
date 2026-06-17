@@ -41,11 +41,6 @@ function wireProgramTracking(
   });
 }
 
-function programNameCell(page: Page, name: string) {
-  const programs = new ProgramsPage(page);
-  return programs.nameCell(name);
-}
-
 function programRow(page: Page, name: string) {
   return programRowsByName(page, name);
 }
@@ -65,6 +60,15 @@ function programDescParagraph(page: Page, name: string) {
   return programs.descriptionParagraph(name);
 }
 
+async function waitForProgramCreateResponse(page: Page) {
+  return page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      response.ok() &&
+      response.url().includes('/api/programs'),
+  );
+}
+
 async function createProgram(page: Page, name: string, description = '') {
   const programs = new ProgramsPage(page);
   await programs.goto();
@@ -74,9 +78,44 @@ async function createProgram(page: Page, name: string, description = '') {
   if (description) {
     await modal.fillDescription(description);
   }
+  const createResponse = waitForProgramCreateResponse(page);
   await modal.submit();
+  await createResponse;
   await expect(modal.dialog).not.toBeVisible();
-  await expect(programNameCell(page, name)).toBeVisible();
+  await expect(programNameParagraph(page, name)).toBeVisible();
+}
+
+async function seedProgramsViaApi(
+  page: Page,
+  trackProgram: CleanupFixtures['trackProgram'],
+  entries: Array<{ name: string; description?: string }>,
+) {
+  const token = process.env.DIDAXIS_API_TOKEN;
+  if (!token) {
+    throw new Error(
+      'DIDAXIS_API_TOKEN is required for API program seeding (TC-017).',
+    );
+  }
+
+  for (const { name, description = '' } of entries) {
+    const response = await page.request.post(`${BASE_URL}/api/programs`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      data: { name, description },
+    });
+    expect(response.ok()).toBeTruthy();
+
+    const payload = (await response.json()) as {
+      id?: string;
+      data?: { id?: string };
+    };
+    const id = typeof payload.id === 'string' ? payload.id : payload.data?.id;
+    if (id) {
+      trackProgram(id);
+    }
+  }
 }
 
 async function getRelativeOrder(page: Page, names: string[]) {
@@ -369,7 +408,7 @@ test.describe('DS-5: Program List Display', () => {
     await expect(modal.dialog).not.toBeVisible();
 
     await programs.goto();
-    await expect(programNameCell(page, name)).toBeVisible();
+    await expect(programRow(page, name)).toHaveCount(1);
     await expect(programNameParagraph(page, name)).toHaveText(name);
     await expect(programDescParagraph(page, name)).toHaveText(description);
     await expect(programs.boldTagsInRow(name)).toHaveCount(0);
@@ -427,14 +466,17 @@ test.describe('DS-5: Program List Display', () => {
   // TC-017 — Program list with multiple programs loads within acceptable time
   test('TC-017: Program list with multiple programs loads within 5 seconds', async ({
     page,
+    trackProgram,
   }) => {
     const programs = new ProgramsPage(page);
-    const names: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      const name = testProgramName(`Perf Program ${i}`);
-      names.push(name);
-      await createProgram(page, name);
-    }
+    const names = Array.from({ length: 10 }, (_, i) =>
+      testProgramName(`Perf Program ${i}`),
+    );
+    await seedProgramsViaApi(
+      page,
+      trackProgram,
+      names.map((name) => ({ name })),
+    );
 
     const start = Date.now();
     await programs.goto();

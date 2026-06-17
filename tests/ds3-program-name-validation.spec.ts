@@ -107,6 +107,7 @@ test.describe('DS-3: Program Name Validation', () => {
     await modal.submit();
     await expect(modal.dialog).not.toBeVisible();
     await expect(programs.nameCell(baseName)).toBeVisible();
+    await expect(programs.nameCell(paddedName)).not.toBeVisible();
   });
 
   // TC-004 — A name previously used by a deleted program can be reused
@@ -144,6 +145,7 @@ test.describe('DS-3: Program Name Validation', () => {
     await modal.fillProgramName('   ');
     await modal.fillDescription(testDescription('Description should not matter'));
     await expect(modal.createButton).toBeDisabled();
+    await expect(modal.dialog).toBeVisible();
   });
 
   // TC-006 — Empty Program Name field prevents form submission
@@ -240,6 +242,7 @@ test.describe('DS-3: Program Name Validation', () => {
     await modal.fillDescription(testDescription('Tab-only name test'));
 
     await expect(modal.createButton).toBeDisabled();
+    await expect(modal.dialog).toBeVisible();
   });
 
   // TC-011 — Program name with a mix of spaces and tabs is rejected
@@ -251,13 +254,14 @@ test.describe('DS-3: Program Name Validation', () => {
     await modal.fillDescription(testDescription('Mixed whitespace name test'));
 
     await expect(modal.createButton).toBeDisabled();
+    await expect(modal.dialog).toBeVisible();
   });
 
   // TC-012 — Single-character program name is accepted
   test('TC-012: Single-character program name is accepted', async ({
     page,
   }) => {
-    const programName = testProgramName('A');
+    const programName = `${DATA_PREFIX}A`;
     const description = testDescription('Single character program name');
     await createProgram(page, programName, description);
   });
@@ -275,7 +279,8 @@ test.describe('DS-3: Program Name Validation', () => {
 
     await createProgram(page, maxName, testDescription('Max length program name test'));
 
-    await expect(programs.nameCell(suffix)).toBeVisible();
+    await expect(programs.nameCell(maxName)).toBeVisible();
+    expect(maxName.length).toBe(255);
   });
 
   // TC-014 — Program name exceeding maximum allowed length is rejected or truncated
@@ -330,19 +335,28 @@ test.describe('DS-3: Program Name Validation', () => {
   }) => {
     const programs = new ProgramsPage(page);
     const programName = testProgramName('Case Test');
+    const caseVariant = programName.toLowerCase();
     await createProgram(page, programName, testDescription('Original case-sensitive test'));
 
-    await programs.openNewProgram();
-    const modal = programs.newProgramModal;
-    await modal.fillProgramName(programName.toLowerCase());
-    await modal.fillDescription(testDescription('Case variant duplicate test'));
-    await modal.submit();
-    await expect(modal.dialog).not.toBeVisible({ timeout: 10000 });
+    async function attemptCaseVariantDuplicate() {
+      await programs.openNewProgram();
+      const modal = programs.newProgramModal;
+      await modal.fillProgramName(caseVariant);
+      await modal.fillDescription(testDescription('Case variant duplicate test'));
+      await modal.submit();
+      await expect(modal.dialog).not.toBeVisible({ timeout: 10000 });
 
-    const errorVisible = await programs.alert.isVisible().catch(() => false);
-    const duplicateRows = programs.nameCellsByPattern(new RegExp(programName, 'i'));
-    const rowCount = await duplicateRows.count();
-    expect(errorVisible || rowCount >= 1).toBe(true);
+      const errorVisible = await programs.alert.isVisible().catch(() => false);
+      const duplicateRows = programs.nameCellsByPattern(new RegExp(programName, 'i'));
+      const rowCount = await duplicateRows.count();
+      return { errorVisible, rowCount };
+    }
+
+    const firstAttempt = await attemptCaseVariantDuplicate();
+    expect(firstAttempt.errorVisible || firstAttempt.rowCount >= 1).toBe(true);
+
+    const secondAttempt = await attemptCaseVariantDuplicate();
+    expect(firstAttempt.errorVisible).toBe(secondAttempt.errorVisible);
   });
 
   // TC-017 — Program name with Unicode and multilingual characters is accepted
@@ -350,12 +364,13 @@ test.describe('DS-3: Program Name Validation', () => {
     page,
   }) => {
     const programs = new ProgramsPage(page);
-    const timestamp = Date.now();
-    const programName = `${DATA_PREFIX}Programmation C++ — Niveau 3 (${timestamp}) 高级`;
+    const programName = `${DATA_PREFIX}Programmation C++ — Niveau 3 (${Date.now()}) 高级`;
     const description = testDescription('Multilingual program name test');
 
     await createProgram(page, programName, description);
-    await expect(programs.nameCell(String(timestamp))).toBeVisible();
+    const cell = programs.nameCell(programName);
+    await expect(cell).toBeVisible();
+    await expect(cell).not.toContainText('?');
   });
 
   // TC-018 — Duplicate name validation is enforced server-side after a page reload
@@ -389,7 +404,7 @@ test.describe('DS-3: Program Name Validation', () => {
   test('TC-019: Program name consisting only of numeric characters is accepted', async ({
     page,
   }) => {
-    const programName = testProgramName('2026');
+    const programName = `${DATA_PREFIX}2026`;
     const description = testDescription('Numeric-only program name test');
     await createProgram(page, programName, description);
   });

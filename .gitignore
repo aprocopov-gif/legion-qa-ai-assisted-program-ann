@@ -17,7 +17,7 @@ playwright/.tmp/
 
 # MCP / Cursor local artifacts
 .playwright-mcp/
-#.cursor/
+
 .cursor-*-last-run.json
 
 # Generated reports

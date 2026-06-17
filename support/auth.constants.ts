@@ -1,3 +1,3 @@
 import path from 'node:path';
 
-export const AUTH_FILE = 'playwright/.auth/user.json';
+export const AUTH_FILE = path.join('playwright', '.auth', 'user.json');

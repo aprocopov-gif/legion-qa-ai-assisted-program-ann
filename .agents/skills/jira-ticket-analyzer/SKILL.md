@@ -32,7 +32,7 @@ Generate reviewable test scenarios from a Jira ticket. The Gherkin output is a h
 
 ## Output
 
-Save as `features/<ticket-key>.feature.md`.
+Save as `features/{ticket_number}.feature.md` (e.g. `features/DS-3.feature.md`).
 
 ## Example
 

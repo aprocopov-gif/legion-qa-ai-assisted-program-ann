@@ -13,10 +13,11 @@ blob-report/
 playwright/.cache/
 playwright/.auth/
 playwright/.tmp/
+.test-artifacts/
 
 # MCP / Cursor local artifacts
 .playwright-mcp/
-.cursor/
+#.cursor/
 .cursor-*-last-run.json
 
 # Generated reports

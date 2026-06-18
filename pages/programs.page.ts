@@ -64,8 +64,16 @@ export class ProgramsPage extends BasePage {
     return this.page.getByText(name, { exact: true }).first();
   }
 
+  programCell(name: string) {
+    return this.row(name).first().getByRole('cell').first();
+  }
+
   descriptionParagraph(name: string) {
     return this.row(name).first().getByRole('cell').first().locator('p').nth(1);
+  }
+
+  descriptionText(name: string, description: string) {
+    return this.row(name).first().getByText(description, { exact: true });
   }
 
   boldTagsInRow(name: string) {

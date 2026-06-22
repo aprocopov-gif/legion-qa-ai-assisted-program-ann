@@ -336,4 +336,43 @@ test.describe('DS-1: Create Program', () => {
     await expect(programs.nameCell(baseName)).toBeVisible();
     await trackProgramsByName(page, trackProgram, baseName);
   });
+
+  // TC-018 — Escape dismisses the form without creating a program
+  test('TC-018: Escape dismisses the New Program modal without creating a program', async ({
+    page,
+  }) => {
+    const programName = testProgramName('Escape Cancel');
+    const description = testDescription('Should not be saved');
+
+    const { programs, modal } = await openNewProgramModal(page);
+    await modal.fillProgramName(programName);
+    await modal.fillDescription(description);
+    await modal.dismissWithEscape();
+
+    await expect(modal.dialog).not.toBeVisible();
+    await expect(programs.nameCell(programName)).not.toBeVisible();
+  });
+
+  // TC-019 — Reopening the modal after Escape retains previously entered values
+  test('TC-019: Reopening the modal after Escape retains previously entered values', async ({
+    page,
+  }) => {
+    const draftName = testProgramName('Escape Draft');
+    const draftDescription = testDescription('Draft description');
+
+    const programs = new ProgramsPage(page);
+    await programs.goto();
+    await programs.openNewProgram();
+
+    const modal = programs.newProgramModal;
+    await modal.fillProgramName(draftName);
+    await modal.fillDescription(draftDescription);
+    await modal.dismissWithEscape();
+    await expect(modal.dialog).not.toBeVisible();
+
+    await programs.openNewProgram();
+    await expect(modal.dialog).toBeVisible();
+    await expect(modal.programNameInput).toHaveValue(draftName);
+    await expect(modal.descriptionInput).toHaveValue(draftDescription);
+  });
 });

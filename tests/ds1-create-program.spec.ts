@@ -18,50 +18,32 @@ type NewProgramContext = {
   modal: ProgramsPage['newProgramModal'];
 };
 
-type ProgramListItem = {
-  id: string;
-  name: string;
-};
-
-async function trackProgramsByName(
+function wireProgramTracking(
   page: Page,
   trackProgram: CleanupFixtures['trackProgram'],
-  name: string,
 ) {
-  const token = process.env.DIDAXIS_API_TOKEN;
-  if (!token) {
-    console.warn(
-      `[ds1-create-program] Skipping cleanup tracking for "${name}" (missing DIDAXIS_API_TOKEN).`,
-    );
-    return;
-  }
+  page.on('response', async (response) => {
+    if (
+      response.request().method() !== 'POST' ||
+      !response.ok() ||
+      !response.url().includes('/api/programs')
+    ) {
+      return;
+    }
 
-  const response = await page.request.get(`${BASE_URL}/api/programs`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    try {
+      const payload = (await response.json()) as {
+        id?: string;
+        data?: { id?: string };
+      };
+      const id = typeof payload.id === 'string' ? payload.id : payload.data?.id;
+      if (id) {
+        trackProgram(id);
+      }
+    } catch {
+      // Ignore non-JSON responses from creation endpoint.
+    }
   });
-  if (!response.ok()) {
-    console.warn(
-      `[ds1-create-program] Skipping cleanup tracking for "${name}" (GET /api/programs returned ${response.status()}).`,
-    );
-    return;
-  }
-
-  const body = (await response.json()) as { data?: ProgramListItem[] };
-  const ids = (body.data ?? [])
-    .filter((program) => program.name === name)
-    .map((program) => program.id);
-  if (ids.length === 0) {
-    console.warn(
-      `[ds1-create-program] No matching program ID found for "${name}".`,
-    );
-    return;
-  }
-
-  for (const id of ids) {
-    trackProgram(id);
-  }
 }
 
 async function openNewProgramModal(page: Page): Promise<NewProgramContext> {
@@ -83,6 +65,10 @@ async function createProgram(page: Page, name: string, description = '') {
 }
 
 test.describe('DS-1: Create Program', () => {
+  test.beforeEach(async ({ page, trackProgram }) => {
+    wireProgramTracking(page, trackProgram);
+  });
+
   // TC-001 — Program creation form is accessible to admin
   test('TC-001: New Program modal contains required fields and Create button', async ({
     page,
@@ -97,24 +83,20 @@ test.describe('DS-1: Create Program', () => {
   // TC-002 — Admin successfully creates a program with all fields populated
   test('TC-002: Admin successfully creates a program with all fields populated', async ({
     page,
-    trackProgram,
   }) => {
     const programName = testProgramName('Web Development');
     const description = testDescription('Full-stack web development program');
 
     await createProgram(page, programName, description);
-    await trackProgramsByName(page, trackProgram, programName);
   });
 
   // TC-003 — Admin successfully creates a program with only the required field
   test('TC-003: Admin successfully creates a program with only the required field', async ({
     page,
-    trackProgram,
   }) => {
     const programName = testProgramName('Data Science');
 
     await createProgram(page, programName);
-    await trackProgramsByName(page, trackProgram, programName);
   });
 
   // TC-004 — Create button is enabled when Program Name is filled
@@ -197,7 +179,6 @@ test.describe('DS-1: Create Program', () => {
   // TC-010 — Program Name at maximum allowed length is accepted
   test('TC-010: Program Name at maximum allowed length is accepted', async ({
     page,
-    trackProgram,
   }) => {
     const suffix = String(Date.now());
     const maxName =
@@ -208,7 +189,6 @@ test.describe('DS-1: Create Program', () => {
     await createProgram(page, maxName, testDescription('Test description'));
     const programs = new ProgramsPage(page);
     await expect(programs.nameCell(suffix)).toBeVisible();
-    await trackProgramsByName(page, trackProgram, maxName);
   });
 
   // TC-011 — Program Name exceeding maximum length is rejected
@@ -234,18 +214,15 @@ test.describe('DS-1: Create Program', () => {
   // TC-012 — Program Name with special characters is handled correctly
   test('TC-012: Program Name with special characters is handled correctly', async ({
     page,
-    trackProgram,
   }) => {
     const programName = `${DATA_PREFIX}Web Dev & Design: ${Date.now()} (Part 1)`;
 
     await createProgram(page, programName);
-    await trackProgramsByName(page, trackProgram, programName);
   });
 
   // TC-013 — Program Name with HTML/script tags does not execute
   test('TC-013: Program Name with HTML/script tags does not execute', async ({
     page,
-    trackProgram,
   }) => {
     let alertFired = false;
     page.on('dialog', (dialog) => {
@@ -259,11 +236,6 @@ test.describe('DS-1: Create Program', () => {
     const createBtn = modal.createButton;
     if (await createBtn.isEnabled()) {
       await createBtn.click();
-      await trackProgramsByName(
-        page,
-        trackProgram,
-        `${DATA_PREFIX}<script>alert('xss')</script>`,
-      );
     }
 
     expect(alertFired).toBe(false);
@@ -272,20 +244,17 @@ test.describe('DS-1: Create Program', () => {
   // TC-014 — Duplicate program name is handled
   test('TC-014: Duplicate program name is handled', async ({
     page,
-    trackProgram,
   }) => {
     const programName = testProgramName('Duplicate Test');
 
     // Create first program
     await createProgram(page, programName);
-    await trackProgramsByName(page, trackProgram, programName);
 
     // Attempt to create a duplicate
     const { modal } = await openNewProgramModal(page);
     await modal.fillProgramName(programName);
     await modal.submit();
     await expect(modal.dialog).not.toBeVisible({ timeout: 10000 });
-    await trackProgramsByName(page, trackProgram, programName);
 
     // Either an error is shown, or the duplicate is created — both are valid outcomes
     const programs = new ProgramsPage(page);
@@ -298,7 +267,6 @@ test.describe('DS-1: Create Program', () => {
   // TC-015 — Description field at maximum allowed length is accepted
   test('TC-015: Description field at maximum allowed length is accepted', async ({
     page,
-    trackProgram,
   }) => {
     const programName = testProgramName('New Program');
     const maxDescription = testDescription(
@@ -306,24 +274,20 @@ test.describe('DS-1: Create Program', () => {
     );
 
     await createProgram(page, programName, maxDescription);
-    await trackProgramsByName(page, trackProgram, programName);
   });
 
   // TC-016 — Newly created program appears in the list without a page refresh
   test('TC-016: Newly created program appears in the list without a page refresh', async ({
     page,
-    trackProgram,
   }) => {
     const programName = testProgramName('Machine Learning');
 
     await createProgram(page, programName);
-    await trackProgramsByName(page, trackProgram, programName);
   });
 
   // TC-017 — Program Name with leading/trailing whitespace is trimmed
   test('TC-017: Program Name with leading/trailing whitespace is trimmed', async ({
     page,
-    trackProgram,
   }) => {
     const baseName = testProgramName('Web Development');
     const paddedName = `  ${baseName}  `;
@@ -334,7 +298,6 @@ test.describe('DS-1: Create Program', () => {
 
     const programs = new ProgramsPage(page);
     await expect(programs.nameCell(baseName)).toBeVisible();
-    await trackProgramsByName(page, trackProgram, baseName);
   });
 
   // TC-018 — Escape dismisses the form without creating a program

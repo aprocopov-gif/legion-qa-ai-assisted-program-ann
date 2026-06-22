@@ -281,10 +281,8 @@ test.describe('DS-4: Delete Program', () => {
     for (let i = 0; i < 6; i++) {
       page.once('dialog', (dialog: Dialog) => dialog.dismiss());
       await clickDeleteIcon(page, name);
-      await page.waitForTimeout(300);
+      await expect(programRow(page, name).first()).toBeVisible();
     }
-
-    await expect(programRow(page, name).first()).toBeVisible();
   });
 
   // TC-012 — Deleting the only program in the list shows an empty-state message
@@ -384,7 +382,6 @@ test.describe('DS-4: Delete Program', () => {
     await page.goto(`${BASE_URL}/programs`);
     await clickDeleteIcon(page, name);
 
-    await page.waitForTimeout(1000);
     expect(dialogCount).toBe(1);
     await expect(programRow(page, name)).toHaveCount(0);
   });
@@ -407,7 +404,6 @@ test.describe('DS-4: Delete Program', () => {
 
     await clickDeleteIcon(page, nameA);
 
-    await page.waitForTimeout(500);
     expect(dialogCount).toBe(1);
     await expect(programRow(page, nameA).first()).toBeVisible();
     await expect(programRow(page, nameB).first()).toBeVisible();

@@ -261,7 +261,7 @@ test.describe('DS-3: Program Name Validation', () => {
   test('TC-012: Single-character program name is accepted', async ({
     page,
   }) => {
-    const programName = `${DATA_PREFIX}A`;
+    const programName = `${DATA_PREFIX}A${Date.now()}`;
     const description = testDescription('Single character program name');
     await createProgram(page, programName, description);
   });
@@ -404,7 +404,7 @@ test.describe('DS-3: Program Name Validation', () => {
   test('TC-019: Program name consisting only of numeric characters is accepted', async ({
     page,
   }) => {
-    const programName = `${DATA_PREFIX}2026`;
+    const programName = `${DATA_PREFIX}2026${Date.now()}`;
     const description = testDescription('Numeric-only program name test');
     await createProgram(page, programName, description);
   });

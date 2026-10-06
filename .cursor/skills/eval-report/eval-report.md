@@ -1,13 +1,13 @@
 # Suite reliability report
 
 **Suite:** Legion QA Playwright (Didaxis Studio)  
-**Repo:** `ai-assisted-qa-automation`  
-**Window:** `e2e.yml` runs 2026-07-10 → 2026-07-22 (14 daily backlog-scan runs) + related PRs, plus local DS-4 re-verify  
-**Generated:** 2026-07-22  
+**Repo:** `legion-qa-ai-assisted-program-ann`  
+**Window:** `e2e.yml` runs 2026-09-29 → 2026-10-05 (daily backlog-scan PRs) + `test-generation.yml` (last scheduled success 2026-09-28)  
+**Generated:** 2026-10-06  
 
 **Note:** Cursor has **no built-in telemetry** for these metrics. Every number below was measured from CI logs (`gh`), PR history, and session review. Refresh via the `eval-report` skill — do not invent numbers; use `insufficient data` when evidence is missing.
 
-**This refresh trigger:** single-ticket Done for **DS-4** (user-requested `run DS-4`). DS-4 already had a generated plan + spec (`tests-generated` label present); this session re-verified the existing spec rather than regenerating it.
+**This refresh trigger:** scheduled **Backlog mode** run (cron 10:00 UTC / 06:00 EST). **0 / 5** tickets processed — Jira queue could not be read (Atlassian MCP `needsAuth`; unauthenticated REST JQL returned empty; no `ATLASSIAN_*` / `DIDAXIS_*` in Cloud Agent env). `gh workflow run test-generation.yml` → **403** (integration token cannot dispatch).
 
 ---
 
@@ -15,9 +15,9 @@
 
 | | |
 |---|---|
-| **Number** | **0** flaky outcomes across **14** `e2e.yml` runs (2026-07-10 → 2026-07-22). Local DS-4 re-verify: **20 passed, 0 flaky, 0 retries**. → **0%** flake in the current window. |
-| **How measured** | `gh run list --workflow=e2e.yml --limit 30`, then `gh run view <id> --log` grepped for `flaky`, `Retry #`, `passed`. Sampled runs 2026-07-16→07-22 (smoke slice **40 tests → 39 passed** + 1 skip; sanity slice **54 tests → 49 passed** + 5 skips) — none reported `flaky`. Local: `npx playwright test tests/ds4-delete-program.spec.ts` → 20 passed, no `Retry #`. CI uses `retries: 2` (`playwright.config.ts`); skips are the non-admin TC-007/TC-010 gates, not failures. |
-| **What it tells us** | The prior window's flake candidates (**DS-4 TC-004/TC-017**, **DS-2 TC-002**) did **not** recur — DS-4 TC-004 and TC-017 passed first-try both in CI and locally. Note: recent CI runs are daily **empty-backlog** scans exercising the standing suite, not new-code runs. |
+| **Number** | **2 flaky / 40 smoke tests** on the latest scan PR E2E run (`37294195557`, 2026-10-05): **2 failed**, **2 flaky**, **36 passed**. Prior run (`37194099316`, 2026-10-04): **9 failed**, **30 passed** (no `flaky` keyword in summary). → **~5% flaky** on the latest green-adjacent run (2/40); window overall is **mixed red + flaky**. |
+| **How measured** | `gh run list --workflow=e2e.yml --limit 15`; `gh run view 37294195557 --log-failed` — summary lists DS-1 TC-003 and programs-accessibility TC-A11Y-002 as **flaky**; DS-2 TC-002 and TC-004 as **failed**. |
+| **What it tells us** | Smoke against live Didaxis is unstable on eval PRs (failures + pass-on-retry). Separate from the Jira-auth blocker; triage DS-2 failures vs DS-1/A11Y flakes before relying on CI as a generation gate. |
 
 ---
 
@@ -25,9 +25,9 @@
 
 | | |
 |---|---|
-| **Number** | **Unchanged: 1 / 2 (50%)** — no new locator-heal PRs this window. **Masked-regression count: 0** (required target: **0**). |
-| **How measured** | `gh pr list --state all` — no `heal/*` or "Heal:" PRs since the last window; latest heal-related PRs remain [#10](https://github.com/aprocopov-gif/ai-assisted-qa-automation/pull/10) (first CI failed) / [#11](https://github.com/aprocopov-gif/ai-assisted-qa-automation/pull/11) (first CI passed). No red run this session, so no heal was invoked. |
-| **What it tells us** | Metric is stale by design (no drift to repair). Masked-regression discipline holds at 0. |
+| **Number** | **Unchanged: 1 / 2 (50%)** — no new locator-heal PRs this window. **Masked-regression count: 0**. |
+| **How measured** | `gh pr list --state all` — no new `heal/*` or "Heal:" PRs since prior window. |
+| **What it tells us** | No drift-heal activity; red/flaky CI on scan PRs was **not** routed through self-heal (no ticket work started). |
 
 ---
 
@@ -35,9 +35,9 @@
 
 | | |
 |---|---|
-| **Number** | **Unchanged: first-PR CI green 2 / 2 (100%)** ([#7](https://github.com/aprocopov-gif/ai-assisted-qa-automation/pull/7) DS-4, [#8](https://github.com/aprocopov-gif/ai-assisted-qa-automation/pull/8) DS-1). **Full gate (green + conforming + maps-to-AC): still incomplete / unknown.** |
-| **How measured** | `gh pr list` — no new `test(DS-*)` generation PRs this window (all recent PRs #16–#24 are `docs(eval-report)` empty-scan commits). DS-4 re-verified **CI-adjacent green locally** this session (20/20) and its 19 TCs **map to AC** (both AC scenarios — confirm-delete + cancel — plus negatives/edges); conformance to `playwright-conventions.mdc` holds (role/label locators, one tag/test, self-cleaning via cleanup fixture). |
-| **What it tells us** | No fresh generation evidence; DS-4's existing spec still passes and maps to AC, but the full conforming+AC checklist remains only half-instrumented across the suite. |
+| **Number** | **Unchanged: first-PR CI green 2 / 2 (100%)** on historical DS-1 / DS-4 generation PRs. **No new ticket generation PRs** in this window (0 backlog tickets processed). |
+| **How measured** | `gh pr list` — recent PRs #38–#42 are `docs(eval)` backlog scans only; `test-generation.yml` dispatch from Cloud Agent still **403**. |
+| **What it tells us** | Generation gate remains stale; automation cannot score new specs until Jira auth + queue fetch work in Cloud Agent. |
 
 ---
 
@@ -45,18 +45,18 @@
 
 | | |
 |---|---|
-| **Number** | **This session (DS-4 run): 0 asks vs 0 invented product values.** |
-| **How measured** | Session review. Ticket read via Atlassian MCP (`getJiraIssue` DS-4); CI/PR evidence via `gh`; verification via local `npx playwright test`. No locators, credentials, or AC were invented. One judgment call recorded (not invented): proceeded despite the `tests-generated` label because the user explicitly asked to run DS-4 — flagged to the user rather than silently skipped. |
-| **What it tells us** | MCP + `gh` + local run evidence continues to beat silent defaults; the single ambiguity (already-generated ticket) was surfaced, not guessed. |
+| **Number** | **This session: 0 asks (automation) vs 0 invented tickets/AC/locators.** |
+| **How measured** | Session review. Attempted Atlassian MCP auth (blocked in Cloud Agent). Ran documented JQL via public REST (empty `issues[]` — treated as **untrusted empty**, not proof of zero backlog). Did **not** pick tickets from stale memory snapshot. |
+| **What it tells us** | Correct guardrail: without authenticated Jira, the orchestrator must not fabricate queue membership. |
 
 ---
 
 ## Top reliability risk
 
-**Stale heal / full-generation-gate instrumentation.** The prior top risk (retries masking DS-4/DS-2 flakes) did **not** recur in this window and is downgraded. The dominant gap now is that recent CI is entirely daily **empty-backlog doc scans** — no new heal or ticket-generation PRs — so heal success (1/2) and the full generation gate (green + conforming + maps-to-AC) are unrefreshed and cannot be scored on fresh evidence.
+**Backlog automation is blocked on Jira identity in Cloud Agent** (MCP auth + REST token). Secondary: **smoke CI on eval PRs is red/flaky** (latest `37294195557`: 2 failed + 2 flaky), so generation runs need triage or a scoped verify baseline after Jira is fixed.
 
 ## Next action
 
-1. On the **next real generation or heal PR**, capture first-PR-green + conformance + AC-map in the PR body so the generation-gate and heal metrics leave the stale state.
-2. Keep watching **DS-4 TC-004/TC-017** and **DS-2 TC-002** on PR/push slices to confirm the flake regression is durable (2+ more windows at 0).
-3. When a heal is needed, use branch `heal/<spec-slug>` and prove green with **assertions unchanged** to keep heal success rate measurable under the orchestrator path.
+1. **Authenticate Atlassian MCP** for the Cloud Agent environment (or inject `ATLASSIAN_EMAIL` + `ATLASSIAN_API_TOKEN` into the agent env) so queue JQL and `tests-generated` labeling work.
+2. **Triage** E2E run `37294195557` (DS-2 TC-002/TC-004 failed; DS-1 TC-003 and A11Y TC-A11Y-002 flaky) — classify drift vs app bug before the next generation batch.
+3. Grant the automation **`workflow_dispatch`** on `test-generation.yml` (or run generation only from CI with secrets) after (1); keep **never merge** on automation PRs.
